@@ -1,7 +1,7 @@
 // Need to use the React-specific entry point to import createApi
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-const BACKEND_URL = "https://fed-storefront-backend-manupa.onrender.com/api/";
+const BACKEND_URL = "https://fed-storefront-backend-dhanushka.onrender.com/api/";
 
 // Define a service using a base URL and expected endpoints
 export const api = createApi({
