@@ -13,8 +13,10 @@ export const api = createApi({
     baseUrl,
     credentials: 'include',
     prepareHeaders: async (headers) => {
+      headers.set('Accept', 'application/json');
+      headers.set('Content-Type', 'application/json');
+      
       try {
-        // Access Clerk from window
         if (window.Clerk?.session) {
           const token = await window.Clerk.session.getToken();
           if (token) {
@@ -30,37 +32,29 @@ export const api = createApi({
 
   endpoints: (builder) => ({
     getProducts: builder.query({
-      query: () => "products",
-      // Add error handling and transformResponse if needed
-      transformResponse: (response) => {
-        console.log('Products response:', response);
-        return response;
-      },
-      transformErrorResponse: (error) => {
-        console.error('Products error:', error);
-        return error;
-      }
+      query: () => ({
+        url: "products",
+        credentials: 'include',
+      }),
     }),
     getProduct: builder.query({
-      query: (id) => `products/${id}`,
+      query: (id) => ({
+        url: `products/${id}`,
+        credentials: 'include',
+      }),
     }),
     getCategories: builder.query({
-      query: () => "categories",
-      // Add error handling and transformResponse if needed
-      transformResponse: (response) => {
-        console.log('Categories response:', response);
-        return response;
-      },
-      transformErrorResponse: (error) => {
-        console.error('Categories error:', error);
-        return error;
-      }
+      query: () => ({
+        url: "categories",
+        credentials: 'include',
+      }),
     }),
     createProduct: builder.mutation({
       query: ({ data }) => ({
         url: "products",
         method: "POST",
         body: data,
+        credentials: 'include',
       }),
     }),
     createOrder: builder.mutation({
@@ -68,15 +62,18 @@ export const api = createApi({
         url: "orders",
         method: "POST",
         body: orderData,
+        credentials: 'include',
       }),
     }),
     getOrder: builder.query({
-      query: ({ orderId }) => `orders/${orderId}`,
+      query: ({ orderId }) => ({
+        url: `orders/${orderId}`,
+        credentials: 'include',
+      }),
     }),
   }),
 });
 
-// Export hooks for usage in functional components
 export const {
   useGetProductsQuery,
   useGetProductQuery,
