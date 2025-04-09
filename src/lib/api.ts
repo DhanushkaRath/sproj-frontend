@@ -1,16 +1,6 @@
 // Need to use the React-specific entry point to import createApi
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-declare global {
-  interface Window {
-    Clerk?: {
-      session?: {
-        getToken: () => Promise<string>;
-      };
-    };
-  }
-}
-
 const isDev = process.env.NODE_ENV === "development";
 const baseUrl = isDev
   ? "http://localhost:8000/api/"
@@ -24,8 +14,9 @@ export const api = createApi({
     credentials: 'include',
     prepareHeaders: async (headers, { getState }) => {
       try {
-        if (window.Clerk?.session) {
-          const token = await window.Clerk.session.getToken();
+        const clerk = (window as any).Clerk;
+        if (clerk?.session) {
+          const token = await clerk.session.getToken();
           if (token) {
             headers.set('Authorization', `Bearer ${token}`);
           }
