@@ -1,17 +1,21 @@
 // Need to use the React-specific entry point to import createApi
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+declare global {
+  interface Window {
+    Clerk?: {
+      session?: {
+        getToken: () => Promise<string>;
+      };
+    };
+  }
+}
+
 const isDev = process.env.NODE_ENV === "development";
 const baseUrl = isDev
   ? "http://localhost:8000/api/"
   : "https://fed-storefront-backend-dhanushka.onrender.com/api/";
 
-
-  // Add this check before making API calls
-if (!window.Clerk?.session) {
-  // Handle the case when Clerk is not initialized
-  console.warn('Clerk session not initialized');
-}
 // Define a service using a base URL and expected endpoints
 export const api = createApi({
   reducerPath: "api",
@@ -20,9 +24,11 @@ export const api = createApi({
     credentials: 'include',
     prepareHeaders: async (headers, { getState }) => {
       try {
-        const token = await window.Clerk?.session?.getToken();
-        if (token) {
-          headers.set('Authorization', `Bearer ${token}`);
+        if (window.Clerk?.session) {
+          const token = await window.Clerk.session.getToken();
+          if (token) {
+            headers.set('Authorization', `Bearer ${token}`);
+          }
         }
       } catch (error) {
         console.error('Error fetching Clerk token:', error);
@@ -48,7 +54,6 @@ export const api = createApi({
         body: data,
       }),
     }),
-    
     createOrder: builder.mutation({
       query: (orderData) => ({
         url: "orders",
@@ -56,16 +61,13 @@ export const api = createApi({
         body: orderData,
       }),
     }),
-
     getOrder: builder.query({
       query: ({ orderId }) => `orders/${orderId}`,
-    
     }),
   }),
 });
 
-// Export hooks for usage in functional components, which are
-// auto-generated based on the defined endpoints
+// Export hooks for usage in functional components
 export const {
   useGetProductsQuery,
   useGetProductQuery,
