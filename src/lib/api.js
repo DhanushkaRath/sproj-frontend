@@ -12,11 +12,11 @@ export const api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl,
     credentials: 'include',
-    prepareHeaders: async (headers, { getState }) => {
+    prepareHeaders: async (headers) => {
       try {
-        const clerk = (window as any).Clerk;
-        if (clerk?.session) {
-          const token = await clerk.session.getToken();
+        // Access Clerk from window
+        if (window.Clerk?.session) {
+          const token = await window.Clerk.session.getToken();
           if (token) {
             headers.set('Authorization', `Bearer ${token}`);
           }
@@ -31,12 +31,30 @@ export const api = createApi({
   endpoints: (builder) => ({
     getProducts: builder.query({
       query: () => "products",
+      // Add error handling and transformResponse if needed
+      transformResponse: (response) => {
+        console.log('Products response:', response);
+        return response;
+      },
+      transformErrorResponse: (error) => {
+        console.error('Products error:', error);
+        return error;
+      }
     }),
     getProduct: builder.query({
       query: (id) => `products/${id}`,
     }),
     getCategories: builder.query({
       query: () => "categories",
+      // Add error handling and transformResponse if needed
+      transformResponse: (response) => {
+        console.log('Categories response:', response);
+        return response;
+      },
+      transformErrorResponse: (error) => {
+        console.error('Categories error:', error);
+        return error;
+      }
     }),
     createProduct: builder.mutation({
       query: ({ data }) => ({

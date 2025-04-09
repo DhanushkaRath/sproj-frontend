@@ -13,14 +13,26 @@ function Products() {
     isLoading: isProductsLoading,
     isError: isProductsError,
     error: productsError,
-  } = useGetProductsQuery();
+  } = useGetProductsQuery(undefined, {
+    // Add logging to debug API calls
+    onSuccess: (data) => console.log('Products fetched:', data),
+    onError: (error) => console.error('Products fetch error:', error)
+  });
 
   const {
     data: categories,
     isLoading: isCategoriesLoading,
     isError: isCategoriesError,
     error: categoriesError,
-  } = useGetCategoriesQuery();
+  } = useGetCategoriesQuery(undefined, {
+    // Add logging to debug API calls
+    onSuccess: (data) => console.log('Categories fetched:', data),
+    onError: (error) => console.error('Categories fetch error:', error)
+  });
+
+  // Add debug logging
+  console.log('Products state:', { products, isProductsLoading, isProductsError, productsError });
+  console.log('Categories state:', { categories, isCategoriesLoading, isCategoriesError, categoriesError });
 
   const filteredProducts =
     selectedCategoryId === "ALL"
@@ -49,13 +61,32 @@ function Products() {
     );
   }
 
+  // Enhanced error handling
   if (isProductsError || isCategoriesError) {
+    console.error('Products error:', productsError);
+    console.error('Categories error:', categoriesError);
     return (
       <section className="px-8 py-8">
         <h2 className="text-4xl font-bold">Our Top Products</h2>
         <Separator className="mt-2" />
         <div className="mt-4">
-          <p className="text-red-500">{`${productsError?.message || ''} ${categoriesError?.message || ''}`}</p>
+          <p className="text-red-500">
+            {productsError ? `Products Error: ${productsError.message || 'Unknown error'}` : ''}
+            {categoriesError ? `Categories Error: ${categoriesError.message || 'Unknown error'}` : ''}
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  // Add null check for data
+  if (!products || !categories) {
+    return (
+      <section className="px-8 py-8">
+        <h2 className="text-4xl font-bold">Our Top Products</h2>
+        <Separator className="mt-2" />
+        <div className="mt-4">
+          <p>No data available</p>
         </div>
       </section>
     );
@@ -66,7 +97,7 @@ function Products() {
       <h2 className="text-4xl font-bold">Our Top Products</h2>
       <Separator className="mt-2" />
       <div className="mt-4 flex items-center gap-4">
-        {[...(categories || []), { _id: "ALL", name: "All" }].map((category) => (
+        {[...categories, { _id: "ALL", name: "All" }].map((category) => (
           <Tab
             key={category._id}
             _id={category._id}
@@ -76,7 +107,7 @@ function Products() {
           />
         ))}
       </div>
-      <ProductCards products={filteredProducts || []} />
+      <ProductCards products={filteredProducts} />
     </section>
   );
 }
