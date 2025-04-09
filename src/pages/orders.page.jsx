@@ -8,44 +8,71 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
 function OrdersPage() {
-  const { getToken, userId } = useAuth();
+  const { getToken, userId, isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState({});
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchOrders = async () => {
+      if (!isAuthLoaded) {
+        return;
+      }
+
+      if (!isSignedIn) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const token = await getToken();
+        if (!token) {
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await fetch(`http://localhost:8000/api/orders`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            if (isMounted) {
+              setOrders([]);
+              setIsLoading(false);
+            }
+            return;
+          }
+          throw new Error(`Failed to fetch orders. Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (isMounted) {
+          setOrders(data);
+        }
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        toast.error("Failed to load orders");
+        if (isMounted) {
+          setOrders([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchOrders();
-  }, []);
 
-  const fetchOrders = async () => {
-    try {
-      setIsLoading(true);
-      const token = await getToken();
-      console.log("Token:", token); // Debugging
-      if (!token) {
-        throw new Error("Authentication token not available");
-      }
-
-      const response = await fetch(`http://localhost:8000/api/orders/user/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch orders. Status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setOrders(data);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error("Failed to load orders");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthLoaded, isSignedIn, getToken]);
 
   const toggleOrderExpansion = (orderId) => {
     setExpandedOrders(prev => ({
@@ -55,6 +82,7 @@ function OrdersPage() {
   };
 
   const getStatusBadgeVariant = (status) => {
+    if (!status) return 'default';
     switch (status.toLowerCase()) {
       case 'pending':
         return 'warning';
@@ -81,10 +109,12 @@ function OrdersPage() {
 
   const handlePayClick = async (order) => {
     try {
+      const token = await getToken();
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(order),
       });
@@ -100,18 +130,35 @@ function OrdersPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
+  const renderContent = () => {
+    if (!isAuthLoaded) {
+      return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      );
+    }
 
-  if (orders.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-8">My Orders</h1>
+    if (!isSignedIn) {
+      return (
+        <div className="text-center py-12">
+          <Package className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+          <h2 className="text-2xl font-semibold mb-2">Please log in to view your orders</h2>
+          <p className="text-gray-600 mb-6">Sign in to see your order history</p>
+        </div>
+      );
+    }
+
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      );
+    }
+
+    if (orders.length === 0) {
+      return (
         <div className="text-center py-12">
           <Package className="h-16 w-16 mx-auto mb-4 text-gray-400" />
           <h2 className="text-2xl font-semibold mb-2">No orders yet</h2>
@@ -122,14 +169,10 @@ function OrdersPage() {
             </Button>
           </Link>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">My Orders</h1>
-      
+    return (
       <div className="space-y-6">
         {orders.map((order) => (
           <Card key={order._id} className="p-6">
@@ -137,8 +180,8 @@ function OrdersPage() {
               <div>
                 <div className="flex items-center gap-4 mb-2">
                   <h3 className="text-lg font-semibold">Order #{order._id.slice(-8)}</h3>
-                  <Badge variant={getStatusBadgeVariant(order.status)}>
-                    {order.status}
+                  <Badge variant={getStatusBadgeVariant(order.orderStatus)}>
+                    {order.orderStatus || 'Unknown'}
                   </Badge>
                 </div>
                 <p className="text-gray-600">
@@ -148,12 +191,13 @@ function OrdersPage() {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="font-semibold">Total Amount</p>
-                  <p className="text-lg">${order.totalAmount.toFixed(2)}</p>
+                  <p className="text-lg">${order.totalAmount?.toFixed(2) || '0.00'}</p>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => toggleOrderExpansion(order._id)}
+                  aria-label={expandedOrders[order._id] ? "Collapse order details" : "Expand order details"}
                 >
                   {expandedOrders[order._id] ? (
                     <ChevronUp className="h-6 w-6" />
@@ -167,7 +211,7 @@ function OrdersPage() {
             {expandedOrders[order._id] && (
               <div className="mt-6 border-t pt-6">
                 <div className="space-y-4">
-                  {order.items.map((item) => (
+                  {order.items?.map((item) => (
                     <div key={item._id} className="flex items-center gap-4">
                       <div className="w-20 h-20 bg-gray-100 rounded-lg p-2">
                         <img
@@ -180,12 +224,13 @@ function OrdersPage() {
                         <Link 
                           to={`/shop/${item.productId}`}
                           className="font-semibold hover:text-primary transition-colors flex items-center gap-2"
+                          aria-label={`View ${item.name} details`}
                         >
                           {item.name}
                           <ExternalLink className="h-4 w-4" />
                         </Link>
                         <p className="text-gray-600">Quantity: {item.quantity}</p>
-                        <p className="text-gray-600">Price: ${item.price}</p>
+                        <p className="text-gray-600">Price: ${item.price?.toFixed(2) || '0.00'}</p>
                       </div>
                     </div>
                   ))}
@@ -196,35 +241,43 @@ function OrdersPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-gray-600">Address:</p>
-                      <p>{order.shippingAddress.street}</p>
-                      <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
-                      <p>{order.shippingAddress.country}</p>
+                      <p>{order.shippingAddress?.street}</p>
+                      <p>{order.shippingAddress?.city}, {order.shippingAddress?.state} {order.shippingAddress?.zipCode}</p>
+                      <p>{order.shippingAddress?.country}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Contact:</p>
-                      <p>{order.shippingAddress.name}</p>
-                      <p>{order.shippingAddress.email}</p>
-                      <p>{order.shippingAddress.phone}</p>
+                      <p>{order.shippingAddress?.name}</p>
+                      <p>{order.shippingAddress?.email}</p>
+                      <p>{order.shippingAddress?.phone}</p>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="mt-6 border-t pt-6">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handlePayClick(order)}
-              >
-                Pay
-              </Button>
-            </div>
+            {order.orderStatus === 'pending' && (
+              <div className="mt-6 border-t pt-6">
+                <Button
+                  variant="default"
+                  onClick={() => handlePayClick(order)}
+                >
+                  Pay Now
+                </Button>
+              </div>
+            )}
           </Card>
         ))}
       </div>
+    );
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold mb-8">My Orders</h1>
+      {renderContent()}
     </div>
   );
 }
 
-export default OrdersPage; 
+export default OrdersPage;

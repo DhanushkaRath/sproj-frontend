@@ -13,6 +13,7 @@ export const api = createApi({
     baseUrl,
     credentials: 'include',
     prepareHeaders: async (headers) => {
+      // Set default headers
       headers.set('Accept', 'application/json');
       headers.set('Content-Type', 'application/json');
       
@@ -28,25 +29,29 @@ export const api = createApi({
       }
       return headers;
     },
+    mode: 'cors', // Explicitly set CORS mode
   }),
 
   endpoints: (builder) => ({
     getProducts: builder.query({
       query: () => ({
         url: "products",
-        credentials: 'include',
+        method: 'GET',
+        mode: 'cors',
       }),
     }),
     getProduct: builder.query({
       query: (id) => ({
         url: `products/${id}`,
-        credentials: 'include',
+        method: 'GET',
+        mode: 'cors',
       }),
     }),
     getCategories: builder.query({
       query: () => ({
         url: "categories",
-        credentials: 'include',
+        method: 'GET',
+        mode: 'cors',
       }),
     }),
     createProduct: builder.mutation({
@@ -54,7 +59,7 @@ export const api = createApi({
         url: "products",
         method: "POST",
         body: data,
-        credentials: 'include',
+        mode: 'cors',
       }),
     }),
     createOrder: builder.mutation({
@@ -62,13 +67,14 @@ export const api = createApi({
         url: "orders",
         method: "POST",
         body: orderData,
-        credentials: 'include',
+        mode: 'cors',
       }),
     }),
     getOrder: builder.query({
       query: ({ orderId }) => ({
         url: `orders/${orderId}`,
-        credentials: 'include',
+        method: 'GET',
+        mode: 'cors',
       }),
     }),
   }),
