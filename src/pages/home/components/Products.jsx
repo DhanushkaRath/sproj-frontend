@@ -1,38 +1,64 @@
 import { Separator } from "@/components/ui/separator";
-import { useGetCategoriesQuery, useGetProductsQuery } from "@/lib/api";
-import { useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
+import { useState, useEffect } from "react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import ProductCards from "./ProductCards";
 import Tab from "./Tab";
 
+const API_BASE_URL = 'https://sproj-backend-dhanushka.onrender.com/api';
+
 function Products() {
   const [selectedCategoryId, setSelectedCategoryId] = useState("ALL");
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { getToken } = useAuth();
 
-  const {
-    data: products,
-    isLoading: isProductsLoading,
-    isError: isProductsError,
-    error: productsError,
-  } = useGetProductsQuery(undefined, {
-    // Add logging to debug API calls
-    onSuccess: (data) => console.log('Products fetched:', data),
-    onError: (error) => console.error('Products fetch error:', error)
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = await getToken();
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/products`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          }),
+          fetch(`${API_BASE_URL}/categories`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          })
+        ]);
 
-  const {
-    data: categories,
-    isLoading: isCategoriesLoading,
-    isError: isCategoriesError,
-    error: categoriesError,
-  } = useGetCategoriesQuery(undefined, {
-    // Add logging to debug API calls
-    onSuccess: (data) => console.log('Categories fetched:', data),
-    onError: (error) => console.error('Categories fetch error:', error)
-  });
+        if (!productsRes.ok || !categoriesRes.ok) {
+          throw new Error('Failed to fetch data');
+        }
 
-  // Add debug logging
-  console.log('Products state:', { products, isProductsLoading, isProductsError, productsError });
-  console.log('Categories state:', { categories, isCategoriesLoading, isCategoriesError, categoriesError });
+        const [productsData, categoriesData] = await Promise.all([
+          productsRes.json(),
+          categoriesRes.json()
+        ]);
+
+        setProducts(productsData);
+        setCategories(categoriesData);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [getToken]);
 
   const filteredProducts =
     selectedCategoryId === "ALL"
@@ -43,7 +69,7 @@ function Products() {
     setSelectedCategoryId(_id);
   };
 
-  if (isProductsLoading || isCategoriesLoading) {
+  if (isLoading) {
     return (
       <section className="px-8 py-8">
         <h2 className="text-4xl font-bold">Our Top Products</h2>
@@ -61,25 +87,18 @@ function Products() {
     );
   }
 
-  // Enhanced error handling
-  if (isProductsError || isCategoriesError) {
-    console.error('Products error:', productsError);
-    console.error('Categories error:', categoriesError);
+  if (error) {
     return (
       <section className="px-8 py-8">
         <h2 className="text-4xl font-bold">Our Top Products</h2>
         <Separator className="mt-2" />
         <div className="mt-4">
-          <p className="text-red-500">
-            {productsError ? `Products Error: ${productsError.message || 'Unknown error'}` : ''}
-            {categoriesError ? `Categories Error: ${categoriesError.message || 'Unknown error'}` : ''}
-          </p>
+          <p className="text-red-500">Error loading products and categories</p>
         </div>
       </section>
     );
   }
 
-  // Add null check for data
   if (!products || !categories) {
     return (
       <section className="px-8 py-8">
@@ -101,13 +120,15 @@ function Products() {
           <Tab
             key={category._id}
             _id={category._id}
-            selectedCategoryId={selectedCategoryId}
             name={category.name}
-            onTabClick={handleTabClick}
+            isActive={selectedCategoryId === category._id}
+            onClick={() => handleTabClick(category._id)}
           />
         ))}
       </div>
-      <ProductCards products={filteredProducts} />
+      <div className="grid grid-cols-4 gap-4 mt-4">
+        <ProductCards products={filteredProducts} />
+      </div>
     </section>
   );
 }

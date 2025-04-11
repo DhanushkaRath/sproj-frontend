@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import AuthCheck from "../components/AuthCheck";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sproj-backend.onrender.com';
+const API_BASE_URL = 'https://sproj-backend-dhanushka.onrender.com/api';
 
 function OrdersPage() {
   const { getToken, userId, isLoaded: isAuthLoaded, isSignedIn } = useAuth();
@@ -28,11 +28,11 @@ function OrdersPage() {
 
         setIsLoading(true);
         const token = await getToken();
-        const response = await fetch(`https://sproj-backend.onrender.com/api/orders/user/${userId}`, {
+        const response = await fetch(`${API_BASE_URL}/orders/user/${userId}`, {
+          method: 'GET',
           headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           },
           credentials: 'include'
         });
@@ -105,7 +105,7 @@ function OrdersPage() {
   const handlePayClick = async (order) => {
     try {
       const token = await getToken();
-      const response = await fetch(`${API_BASE_URL}/api/orders`, {
+      const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
