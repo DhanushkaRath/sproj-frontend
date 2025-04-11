@@ -19,33 +19,31 @@ function Products() {
     const fetchData = async () => {
       try {
         const token = await getToken();
-        const [productsRes, categoriesRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/products`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-          }),
-          fetch(`${API_BASE_URL}/categories`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-          })
-        ]);
+        
+        // Fetch products
+        const productsResponse = await fetch(`${API_BASE_URL}/products`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-        if (!productsRes.ok || !categoriesRes.ok) {
+        // Fetch categories
+        const categoriesResponse = await fetch(`${API_BASE_URL}/categories`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!productsResponse.ok || !categoriesResponse.ok) {
           throw new Error('Failed to fetch data');
         }
 
-        const [productsData, categoriesData] = await Promise.all([
-          productsRes.json(),
-          categoriesRes.json()
-        ]);
+        const productsData = await productsResponse.json();
+        const categoriesData = await categoriesResponse.json();
 
         setProducts(productsData);
         setCategories(categoriesData);
