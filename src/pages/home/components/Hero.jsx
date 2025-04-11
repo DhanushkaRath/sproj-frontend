@@ -1,5 +1,6 @@
 import "./Hero.css";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 function Hero() {
   return (
@@ -12,9 +13,9 @@ function Hero() {
             Lorem ipsum dolor sit amet consectetur adipisicing elit. Eius quos
             suscipit est autem quia? Voluptatem?
           </p>
-          <Button className="w-fit" asChild>
-            <a href="/shop">Shop Now</a>
-          </Button>
+          <Link to="/shop">
+            <Button className="w-fit">Shop Now</Button>
+          </Link>
         </div>
         <div className="hero-image-container">
           <img
