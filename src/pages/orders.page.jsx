@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Package, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import AuthCheck from "../components/AuthCheck";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sproj-backend.onrender.com';
 
 function OrdersPage() {
   const { getToken, userId, isLoaded: isAuthLoaded, isSignedIn } = useAuth();
@@ -17,34 +20,26 @@ function OrdersPage() {
     let isMounted = true;
 
     const fetchOrders = async () => {
-      if (!isAuthLoaded) {
-        return;
-      }
-
-      if (!isSignedIn) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const token = await getToken();
-        if (!token) {
-          setIsLoading(false);
+        if (!userId) {
+          toast.error("Please log in to view your orders.");
           return;
         }
 
-        const response = await fetch(`http://localhost:8000/api/orders`, {
+        setIsLoading(true);
+        const token = await getToken();
+        const response = await fetch(`https://sproj-backend.onrender.com/api/orders/user/${userId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
+          credentials: 'include'
         });
 
         if (!response.ok) {
           if (response.status === 404) {
-            if (isMounted) {
-              setOrders([]);
-              setIsLoading(false);
-            }
+            setOrders([]);
             return;
           }
           throw new Error(`Failed to fetch orders. Status: ${response.status}`);
@@ -72,7 +67,7 @@ function OrdersPage() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthLoaded, isSignedIn, getToken]);
+  }, [isAuthLoaded, isSignedIn, userId, getToken]);
 
   const toggleOrderExpansion = (orderId) => {
     setExpandedOrders(prev => ({
@@ -110,12 +105,13 @@ function OrdersPage() {
   const handlePayClick = async (order) => {
     try {
       const token = await getToken();
-      const response = await fetch('/api/orders', {
+      const response = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify(order),
       });
 
@@ -125,40 +121,52 @@ function OrdersPage() {
 
       const result = await response.json();
       console.log('Order submitted successfully:', result);
+      toast.success('Payment initiated successfully');
     } catch (error) {
       console.error('Error submitting order:', error);
+      toast.error('Failed to initiate payment');
     }
   };
 
-  const renderContent = () => {
-    if (!isAuthLoaded) {
-      return (
+  if (!isAuthLoaded) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold mb-8">My Orders</h1>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (!isSignedIn) {
-      return (
+  if (!isSignedIn) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold mb-8">My Orders</h1>
         <div className="text-center py-12">
           <Package className="h-16 w-16 mx-auto mb-4 text-gray-400" />
           <h2 className="text-2xl font-semibold mb-2">Please log in to view your orders</h2>
           <p className="text-gray-600 mb-6">Sign in to see your order history</p>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (isLoading) {
-      return (
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold mb-8">My Orders</h1>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (orders.length === 0) {
-      return (
+  if (orders.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold mb-8">My Orders</h1>
         <div className="text-center py-12">
           <Package className="h-16 w-16 mx-auto mb-4 text-gray-400" />
           <h2 className="text-2xl font-semibold mb-2">No orders yet</h2>
@@ -169,10 +177,14 @@ function OrdersPage() {
             </Button>
           </Link>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    return (
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <AuthCheck />
+      <h1 className="text-4xl font-bold mb-8">My Orders</h1>
       <div className="space-y-6">
         {orders.map((order) => (
           <Card key={order._id} className="p-6">
@@ -269,13 +281,6 @@ function OrdersPage() {
           </Card>
         ))}
       </div>
-    );
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">My Orders</h1>
-      {renderContent()}
     </div>
   );
 }

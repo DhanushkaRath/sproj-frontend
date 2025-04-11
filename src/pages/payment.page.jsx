@@ -123,12 +123,16 @@ function PaymentPage() {
 
       console.log("Sending order details:", orderDetails); // Debug log
 
-      const response = await fetch("http://localhost:8000/api/orders", {
+      const response = await fetch("https://sproj-backend.onrender.com/api/orders", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Origin': 'http://localhost:5175'
         },
+        mode: 'cors',
+        credentials: 'include',
         body: JSON.stringify(orderDetails),
       });
 
