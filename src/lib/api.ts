@@ -13,7 +13,7 @@ declare global {
 const isDev = process.env.NODE_ENV === "development";
 const baseUrl = isDev
   ? "http://localhost:8000/api/"
-  : "https://fed-storefront-backend-dhanushka.onrender.com/api/";
+  : "https://sproj-backend.onrender.com/api/";
 
 export const api = createApi({
   reducerPath: "api",
