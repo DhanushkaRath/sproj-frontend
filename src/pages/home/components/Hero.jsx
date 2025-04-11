@@ -13,7 +13,7 @@ function Hero() {
             suscipit est autem quia? Voluptatem?
           </p>
           <Button className="w-fit" asChild>
-            <a to="/shop">Shop Now</a>
+            <a href="/shop">Shop Now</a>
           </Button>
         </div>
         <div className="hero-image-container">
