@@ -1,10 +1,14 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+const isDev = process.env.NODE_ENV === "development";
+const baseUrl = isDev
+  ? "http://localhost:8000/api/"
+  : "https://fed-storefront-backend-dhanushka.onrender.com/api/";
 
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: "https://fed-storefront-backend-dhanushka.onrender.com/api/",
+    baseUrl,
     prepareHeaders: async (headers, { getState }) => {
       const token = await window.Clerk?.session?.getToken();
       if (token) {
