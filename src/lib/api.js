@@ -1,20 +1,16 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-const isDev = process.env.NODE_ENV === "development";
-const baseUrl = isDev
-  ? "http://localhost:8000/api/"
-  : "https://fed-storefront-backend-dhanushka.onrender.com/api/";
 
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl,
-    prepareHeaders: (headers) => {
-      // Use token if available in localStorage or global state (workaround for async issues)
-      const token = localStorage.getItem("clerk_token"); // set this manually after login
+    baseUrl: "https://fed-storefront-backend-dhanushka.onrender.com/api/",
+    prepareHeaders: async (headers, { getState }) => {
+      const token = await window.Clerk?.session?.getToken();
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
+
       return headers;
     },
   }),
