@@ -9,13 +9,13 @@ exports.handler = async function(event, context) {
     query: event.queryStringParameters
   });
 
-  // Extract the path after /api/
-  const path = event.path.replace('/.netlify/functions/proxy', '');
-  const backendUrl = `https://fed-storefront-backend-dhanushka.onrender.com${path}`;
-  
-  console.log('Proxying to backend:', backendUrl);
-
   try {
+    // Extract the path after /api/
+    const path = event.path.replace('/.netlify/functions/proxy', '');
+    const backendUrl = `https://fed-storefront-backend-dhanushka.onrender.com${path}`;
+    
+    console.log('Proxying to backend:', backendUrl);
+
     // Prepare headers for the backend request
     const headers = {
       'Content-Type': 'application/json',

@@ -39,6 +39,12 @@ export const api = createApi({
           return false;
         },
       }),
+      retry: (failureCount, error) => {
+        if (failureCount < 3) {
+          return true;
+        }
+        return false;
+      },
     }),
     getProduct: builder.query({
       query: (id) => ({
@@ -55,6 +61,12 @@ export const api = createApi({
           return false;
         },
       }),
+      retry: (failureCount, error) => {
+        if (failureCount < 3) {
+          return true;
+        }
+        return false;
+      },
     }),
     getCategories: builder.query({
       query: () => ({
@@ -71,6 +83,12 @@ export const api = createApi({
           return false;
         },
       }),
+      retry: (failureCount, error) => {
+        if (failureCount < 3) {
+          return true;
+        }
+        return false;
+      },
     }),
     createProduct: builder.mutation({
       query: ({ data, token }) => ({
