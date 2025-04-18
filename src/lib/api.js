@@ -9,13 +9,14 @@ export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl,
+    credentials: 'include',
     prepareHeaders: async (headers, { getState }) => {
       const token = await window.Clerk?.session?.getToken();
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
-      // Add CORS headers
-      headers.set("Access-Control-Allow-Origin", "*");
+      headers.set("Access-Control-Allow-Origin", "https://fed-storefront-frontend-dhanushka.netlify.app");
+      headers.set("Access-Control-Allow-Credentials", "true");
       headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
       headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
       return headers;
@@ -27,8 +28,10 @@ export const api = createApi({
       query: () => ({
         url: "products",
         method: "GET",
+        credentials: 'include',
         headers: {
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
+          "Access-Control-Allow-Credentials": "true",
         },
       }),
     }),
@@ -36,8 +39,10 @@ export const api = createApi({
       query: (id) => ({
         url: `products/${id}`,
         method: "GET",
+        credentials: 'include',
         headers: {
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
+          "Access-Control-Allow-Credentials": "true",
         },
       }),
     }),
@@ -45,8 +50,10 @@ export const api = createApi({
       query: () => ({
         url: "categories",
         method: "GET",
+        credentials: 'include',
         headers: {
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
+          "Access-Control-Allow-Credentials": "true",
         },
       }),
     }),
