@@ -16,14 +16,21 @@ exports.handler = async function(event, context) {
   console.log('Proxying to backend:', backendUrl);
 
   try {
+    // Prepare headers for the backend request
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    // Add Authorization header if present
+    if (event.headers.authorization) {
+      headers['Authorization'] = event.headers.authorization;
+    }
+
     // Make the request to the backend
     const response = await fetch(backendUrl, {
       method: event.httpMethod,
-      headers: {
-        ...event.headers,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: headers,
       body: event.body,
     });
 

@@ -1,5 +1,5 @@
 [[redirects]]
-  from = "/.netlify/functions/proxy/api/*"
+  from = "/api/*"
   to = "/.netlify/functions/proxy/api/:splat"
   status = 200
   force = true
