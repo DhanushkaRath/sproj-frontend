@@ -33,15 +33,15 @@ exports.handler = async function(event, context) {
     const response = await fetch(backendUrl, {
       method: event.httpMethod,
       headers: headers,
-      body: event.body,
-      credentials: 'include'
+      body: event.body
     });
 
     // Log the response details
     console.log('Backend response:', {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers.raw()
+      headers: response.headers.raw(),
+      url: response.url
     });
 
     // Get the content type
@@ -56,7 +56,9 @@ exports.handler = async function(event, context) {
       const text = await response.text();
       console.error('Unexpected content type:', {
         contentType,
-        responseText: text
+        responseText: text,
+        status: response.status,
+        statusText: response.statusText
       });
       throw new Error(`Unexpected content type: ${contentType}`);
     }
@@ -69,10 +71,7 @@ exports.handler = async function(event, context) {
         'Access-Control-Allow-Origin': 'https://fed-storefront-frontend-dhanushka.netlify.app',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Credentials': 'true',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
+        'Access-Control-Allow-Credentials': 'true'
       },
       body: JSON.stringify(data),
     };
@@ -82,7 +81,8 @@ exports.handler = async function(event, context) {
       message: error.message,
       stack: error.stack,
       path: event.path,
-      method: event.httpMethod
+      method: event.httpMethod,
+      url: `https://fed-storefront-backend-dhanushka.onrender.com/api${event.path.replace('/.netlify/functions/proxy/api', '')}`
     });
 
     // Return an error response with more details
@@ -93,7 +93,7 @@ exports.handler = async function(event, context) {
         'Access-Control-Allow-Origin': 'https://fed-storefront-frontend-dhanushka.netlify.app',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Credentials': 'true'
       },
       body: JSON.stringify({ 
         error: 'Failed to fetch data from backend',

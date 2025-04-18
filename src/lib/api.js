@@ -15,10 +15,8 @@ export const api = createApi({
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
-      // Add cache-busting headers
-      headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
-      headers.set("Pragma", "no-cache");
-      headers.set("Expires", "0");
+      headers.set("Content-Type", "application/json");
+      headers.set("Accept", "application/json");
       return headers;
     },
   }),
@@ -34,13 +32,15 @@ export const api = createApi({
           console.error('Products API Error:', {
             status: response.status,
             statusText: response.statusText,
-            data: result
+            data: result,
+            url: response.url
           });
           return false;
         },
       }),
       retry: (failureCount, error) => {
         if (failureCount < 3) {
+          console.log(`Retrying products fetch (attempt ${failureCount + 1})`);
           return true;
         }
         return false;
@@ -56,13 +56,15 @@ export const api = createApi({
           console.error('Product API Error:', {
             status: response.status,
             statusText: response.statusText,
-            data: result
+            data: result,
+            url: response.url
           });
           return false;
         },
       }),
       retry: (failureCount, error) => {
         if (failureCount < 3) {
+          console.log(`Retrying product fetch (attempt ${failureCount + 1})`);
           return true;
         }
         return false;
@@ -78,13 +80,15 @@ export const api = createApi({
           console.error('Categories API Error:', {
             status: response.status,
             statusText: response.statusText,
-            data: result
+            data: result,
+            url: response.url
           });
           return false;
         },
       }),
       retry: (failureCount, error) => {
         if (failureCount < 3) {
+          console.log(`Retrying categories fetch (attempt ${failureCount + 1})`);
           return true;
         }
         return false;
