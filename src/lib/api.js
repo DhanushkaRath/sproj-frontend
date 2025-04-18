@@ -15,10 +15,6 @@ export const api = createApi({
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
-      headers.set("Access-Control-Allow-Origin", "https://fed-storefront-frontend-dhanushka.netlify.app");
-      headers.set("Access-Control-Allow-Credentials", "true");
-      headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-      headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
       return headers;
     },
   }),
@@ -29,10 +25,6 @@ export const api = createApi({
         url: "products",
         method: "GET",
         credentials: 'include',
-        headers: {
-          "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
-          "Access-Control-Allow-Credentials": "true",
-        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Products API Error:', {
@@ -49,10 +41,6 @@ export const api = createApi({
         url: `products/${id}`,
         method: "GET",
         credentials: 'include',
-        headers: {
-          "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
-          "Access-Control-Allow-Credentials": "true",
-        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Product API Error:', {
@@ -69,10 +57,6 @@ export const api = createApi({
         url: "categories",
         method: "GET",
         credentials: 'include',
-        headers: {
-          "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
-          "Access-Control-Allow-Credentials": "true",
-        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Categories API Error:', {
