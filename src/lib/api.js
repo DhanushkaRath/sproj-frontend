@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 const isDev = process.env.NODE_ENV === "development";
 const baseUrl = isDev
   ? "http://localhost:8000/api/"
-  : "https://fed-storefront-backend-dhanushka.onrender.com/api/";
+  : "/api/"; // Using relative path for production
 
 export const api = createApi({
   reducerPath: "api",
