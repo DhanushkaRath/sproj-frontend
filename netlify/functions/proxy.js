@@ -52,6 +52,7 @@ exports.handler = async function(event, context) {
     let data;
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
+      console.log('Backend response data:', data);
     } else {
       const text = await response.text();
       console.error('Unexpected content type:', {
@@ -61,6 +62,16 @@ exports.handler = async function(event, context) {
         statusText: response.statusText
       });
       throw new Error(`Unexpected content type: ${contentType}`);
+    }
+
+    // If the backend returned an error, throw it
+    if (response.status >= 400) {
+      console.error('Backend returned error:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
+      throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
     }
 
     // Return the successful response
@@ -100,7 +111,8 @@ exports.handler = async function(event, context) {
         details: error.message,
         path: event.path,
         method: event.httpMethod,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        backendUrl: `https://fed-storefront-backend-dhanushka.onrender.com/api${event.path.replace('/.netlify/functions/proxy/api', '')}`
       }),
     };
   }
