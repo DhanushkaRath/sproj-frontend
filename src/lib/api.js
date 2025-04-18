@@ -14,20 +14,41 @@ export const api = createApi({
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
-
+      // Add CORS headers
+      headers.set("Access-Control-Allow-Origin", "*");
+      headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
       return headers;
     },
   }),
 
   endpoints: (builder) => ({
     getProducts: builder.query({
-      query: () => "products",
+      query: () => ({
+        url: "products",
+        method: "GET",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      }),
     }),
     getProduct: builder.query({
-      query: (id) => `products/${id}`,
+      query: (id) => ({
+        url: `products/${id}`,
+        method: "GET",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      }),
     }),
     getCategories: builder.query({
-      query: () => "categories",
+      query: () => ({
+        url: "categories",
+        method: "GET",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      }),
     }),
     createProduct: builder.mutation({
       query: ({ data, token }) => ({
