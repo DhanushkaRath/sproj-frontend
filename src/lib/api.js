@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 const isDev = process.env.NODE_ENV === "development";
 const baseUrl = isDev
   ? "http://localhost:8000/api/"
-  : "/api/"; // Using relative path for production
+  : "/.netlify/functions/proxy/api/"; // Using Netlify function URL for production
 
 export const api = createApi({
   reducerPath: "api",
@@ -29,9 +29,6 @@ export const api = createApi({
         url: "products",
         method: "GET",
         credentials: 'include',
-        params: {
-          _t: Date.now(), // Add timestamp to prevent caching
-        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Products API Error:', {
@@ -48,9 +45,6 @@ export const api = createApi({
         url: `products/${id}`,
         method: "GET",
         credentials: 'include',
-        params: {
-          _t: Date.now(), // Add timestamp to prevent caching
-        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Product API Error:', {
@@ -67,9 +61,6 @@ export const api = createApi({
         url: "categories",
         method: "GET",
         credentials: 'include',
-        params: {
-          _t: Date.now(), // Add timestamp to prevent caching
-        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Categories API Error:', {
