@@ -12,8 +12,8 @@ exports.handler = async function(event, context) {
 
   try {
     // Extract the path after /api/
-    const path = event.path.replace('/.netlify/functions/proxy', '');
-    const backendUrl = `https://fed-storefront-backend-dhanushka.onrender.com${path}`;
+    const path = event.path.replace('/.netlify/functions/proxy/api', '');
+    const backendUrl = `https://fed-storefront-backend-dhanushka.onrender.com/api${path}`;
     
     console.log('Proxying to backend:', backendUrl);
 
@@ -21,6 +21,7 @@ exports.handler = async function(event, context) {
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'Origin': 'https://fed-storefront-frontend-dhanushka.netlify.app'
     };
 
     // Add Authorization header if present
@@ -33,6 +34,7 @@ exports.handler = async function(event, context) {
       method: event.httpMethod,
       headers: headers,
       body: event.body,
+      credentials: 'include'
     });
 
     // Log the response details
@@ -75,10 +77,15 @@ exports.handler = async function(event, context) {
       body: JSON.stringify(data),
     };
   } catch (error) {
-    // Log the error
-    console.error('Proxy error:', error);
+    // Log the error with more details
+    console.error('Proxy error:', {
+      message: error.message,
+      stack: error.stack,
+      path: event.path,
+      method: event.httpMethod
+    });
 
-    // Return an error response
+    // Return an error response with more details
     return {
       statusCode: 500,
       headers: {
@@ -91,7 +98,9 @@ exports.handler = async function(event, context) {
       body: JSON.stringify({ 
         error: 'Failed to fetch data from backend',
         details: error.message,
-        path: event.path
+        path: event.path,
+        method: event.httpMethod,
+        timestamp: new Date().toISOString()
       }),
     };
   }
