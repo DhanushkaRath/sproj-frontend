@@ -33,6 +33,15 @@ export const api = createApi({
           "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
           "Access-Control-Allow-Credentials": "true",
         },
+        validateStatus: (response, result) => {
+          if (response.status === 200) return true;
+          console.error('Products API Error:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: result
+          });
+          return false;
+        },
       }),
     }),
     getProduct: builder.query({
@@ -44,6 +53,15 @@ export const api = createApi({
           "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
           "Access-Control-Allow-Credentials": "true",
         },
+        validateStatus: (response, result) => {
+          if (response.status === 200) return true;
+          console.error('Product API Error:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: result
+          });
+          return false;
+        },
       }),
     }),
     getCategories: builder.query({
@@ -54,6 +72,15 @@ export const api = createApi({
         headers: {
           "Access-Control-Allow-Origin": "https://fed-storefront-frontend-dhanushka.netlify.app",
           "Access-Control-Allow-Credentials": "true",
+        },
+        validateStatus: (response, result) => {
+          if (response.status === 200) return true;
+          console.error('Categories API Error:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: result
+          });
+          return false;
         },
       }),
     }),
