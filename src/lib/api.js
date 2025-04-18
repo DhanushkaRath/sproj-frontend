@@ -15,6 +15,10 @@ export const api = createApi({
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
+      // Add cache-busting headers
+      headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+      headers.set("Pragma", "no-cache");
+      headers.set("Expires", "0");
       return headers;
     },
   }),
@@ -25,6 +29,9 @@ export const api = createApi({
         url: "products",
         method: "GET",
         credentials: 'include',
+        params: {
+          _t: Date.now(), // Add timestamp to prevent caching
+        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Products API Error:', {
@@ -41,6 +48,9 @@ export const api = createApi({
         url: `products/${id}`,
         method: "GET",
         credentials: 'include',
+        params: {
+          _t: Date.now(), // Add timestamp to prevent caching
+        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Product API Error:', {
@@ -57,6 +67,9 @@ export const api = createApi({
         url: "categories",
         method: "GET",
         credentials: 'include',
+        params: {
+          _t: Date.now(), // Add timestamp to prevent caching
+        },
         validateStatus: (response, result) => {
           if (response.status === 200) return true;
           console.error('Categories API Error:', {
