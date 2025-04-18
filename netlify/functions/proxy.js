@@ -6,7 +6,8 @@ exports.handler = async function(event, context) {
     path: event.path,
     method: event.httpMethod,
     headers: event.headers,
-    query: event.queryStringParameters
+    query: event.queryStringParameters,
+    body: event.body
   });
 
   try {
