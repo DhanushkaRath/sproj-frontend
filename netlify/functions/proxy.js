@@ -1,27 +1,26 @@
 const fetch = require('node-fetch');
 
-exports.handler = async function(event, context) {
-  // Log the incoming request
-  console.log('Incoming request:', {
-    path: event.path,
-    method: event.httpMethod,
-    headers: event.headers,
-    query: event.queryStringParameters,
-    body: event.body
-  });
+const BACKEND_URL = "https://sproj-backend.onrender.com";
 
+exports.handler = async (event, context) => {
   try {
-    // Extract the path after /api/
-    const path = event.path.replace('/.netlify/functions/proxy/api', '');
-    const backendUrl = `https://fed-storefront-backend-dhanushka.onrender.com/api${path}`;
-    
-    console.log('Proxying to backend:', backendUrl);
+    // Log incoming request
+    console.log('Incoming request:', {
+      path: event.path,
+      method: event.httpMethod,
+      headers: event.headers,
+      query: event.queryStringParameters,
+      body: event.body
+    });
 
-    // Prepare headers for the backend request
+    // Extract the path after /api/
+    const path = event.path.replace('/.netlify/functions/proxy/api/', '');
+    const backendUrl = `${BACKEND_URL}/api/${path}`;
+
+    // Prepare headers for backend request
     const headers = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Origin': 'https://fed-storefront-frontend-dhanushka.netlify.app'
+      'Accept': 'application/json'
     };
 
     // Add Authorization header if present
@@ -29,91 +28,74 @@ exports.handler = async function(event, context) {
       headers['Authorization'] = event.headers.authorization;
     }
 
-    // Make the request to the backend
+    // Make request to backend
     const response = await fetch(backendUrl, {
       method: event.httpMethod,
       headers: headers,
-      body: event.body
+      body: event.body,
+      credentials: 'include'
     });
 
-    // Log the response details
+    // Log backend response
     console.log('Backend response:', {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers.raw(),
-      url: response.url
+      headers: Object.fromEntries(response.headers.entries())
     });
 
-    // Get the content type
+    // Get response content type
     const contentType = response.headers.get('content-type');
-    console.log('Content-Type:', contentType);
-
-    // Handle the response based on content type
     let data;
+
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
-      console.log('Backend response data:', data);
     } else {
-      const text = await response.text();
-      console.error('Unexpected content type:', {
-        contentType,
-        responseText: text,
-        status: response.status,
-        statusText: response.statusText
-      });
-      throw new Error(`Unexpected content type: ${contentType}`);
+      data = await response.text();
+      console.log('Unexpected content type:', contentType);
     }
 
-    // If the backend returned an error, throw it
+    // Log response data
+    console.log('Response data:', data);
+
+    // If backend returned an error, throw it
     if (response.status >= 400) {
-      console.error('Backend returned error:', {
+      console.error('Backend error:', {
         status: response.status,
         statusText: response.statusText,
         data: data
       });
-      throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
+      throw new Error(`Backend error: ${response.status} ${response.statusText}`);
     }
 
-    // Return the successful response
+    // Return successful response
     return {
       statusCode: response.status,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': 'https://fed-storefront-frontend-dhanushka.netlify.app',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Credentials': 'true'
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(data)
     };
-  } catch (error) {
-    // Log the error with more details
-    console.error('Proxy error:', {
-      message: error.message,
-      stack: error.stack,
-      path: event.path,
-      method: event.httpMethod,
-      url: `https://fed-storefront-backend-dhanushka.onrender.com/api${event.path.replace('/.netlify/functions/proxy/api', '')}`
-    });
 
-    // Return an error response with more details
+  } catch (error) {
+    console.error('Proxy error:', error);
     return {
       statusCode: 500,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': 'https://fed-storefront-frontend-dhanushka.netlify.app',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Credentials': 'true'
       },
-      body: JSON.stringify({ 
-        error: 'Failed to fetch data from backend',
-        details: error.message,
-        path: event.path,
-        method: event.httpMethod,
-        timestamp: new Date().toISOString(),
-        backendUrl: `https://fed-storefront-backend-dhanushka.onrender.com/api${event.path.replace('/.netlify/functions/proxy/api', '')}`
-      }),
+      body: JSON.stringify({
+        error: 'Proxy error',
+        message: error.message,
+        details: error.stack
+      })
     };
   }
 }; 
