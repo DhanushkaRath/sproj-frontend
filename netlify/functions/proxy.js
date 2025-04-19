@@ -44,13 +44,34 @@ exports.handler = async (event, context) => {
       headers['Authorization'] = event.headers.authorization;
     }
 
-    // Make request to backend
-    const response = await fetch(backendUrl, {
-      method: event.httpMethod,
-      headers: headers,
-      body: event.body,
-      credentials: 'include'
-    });
+    // Make request to backend with timeout
+    let response;
+    try {
+      response = await fetch(backendUrl, {
+        method: event.httpMethod,
+        headers: headers,
+        body: event.body,
+        credentials: 'include',
+        timeout: 10000 // 10 second timeout
+      });
+    } catch (fetchError) {
+      console.error('Fetch error:', fetchError);
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Credentials': 'true'
+        },
+        body: JSON.stringify({
+          error: 'Fetch error',
+          message: fetchError.message,
+          details: fetchError.stack
+        })
+      };
+    }
 
     // Log backend response
     console.log('Backend response:', {
@@ -72,7 +93,21 @@ exports.handler = async (event, context) => {
       }
     } catch (error) {
       console.error('Error parsing response:', error);
-      throw new Error(`Failed to parse response: ${error.message}`);
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Credentials': 'true'
+        },
+        body: JSON.stringify({
+          error: 'Parse error',
+          message: error.message,
+          details: error.stack
+        })
+      };
     }
 
     // Log response data
