@@ -56,6 +56,71 @@ exports.handler = async (event, context) => {
 
         console.log(`Attempt ${retryCount + 1} to fetch from backend:`, backendUrl);
         
+        // Use a more direct approach to check if the backend is accessible
+        if (retryCount === 0) {
+          try {
+            // First, try a simple HEAD request to check if the backend is accessible
+            const headResponse = await fetch(backendUrl, {
+              method: 'HEAD',
+              headers: {
+                'Accept': '*/*'
+              },
+              signal: controller.signal
+            });
+            
+            console.log('HEAD request response:', {
+              status: headResponse.status,
+              statusText: headResponse.statusText,
+              ok: headResponse.ok
+            });
+            
+            if (!headResponse.ok) {
+              console.error('HEAD request failed:', {
+                status: headResponse.status,
+                statusText: headResponse.statusText
+              });
+              
+              // If the HEAD request fails, return a more specific error
+              return {
+                statusCode: headResponse.status || 500,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*',
+                  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                  'Access-Control-Allow-Credentials': 'true'
+                },
+                body: JSON.stringify({
+                  error: 'Backend unavailable',
+                  status: headResponse.status,
+                  message: headResponse.statusText || 'Backend server is not responding correctly',
+                  details: 'The backend server returned an error status for a HEAD request'
+                })
+              };
+            }
+          } catch (headError) {
+            console.error('HEAD request error:', headError);
+            
+            // If the HEAD request throws an error, return a more specific error
+            return {
+              statusCode: 503,
+              headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Credentials': 'true'
+              },
+              body: JSON.stringify({
+                error: 'Service Unavailable',
+                message: 'Backend service is not accessible',
+                details: headError.message || 'The backend server is not responding to HEAD requests'
+              })
+            };
+          }
+        }
+        
+        // If the HEAD request succeeds, proceed with the actual request
         response = await fetch(backendUrl, {
           method: event.httpMethod,
           headers: headers,
