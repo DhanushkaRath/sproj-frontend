@@ -29,10 +29,29 @@ const corsHeaders = {
 // Function to check backend health
 async function checkBackendHealth() {
   try {
+    // First try a simple GET request to the root endpoint
+    const rootUrl = BACKEND_URL;
+    console.log('Checking backend root URL:', rootUrl);
+    
+    const rootResponse = await fetch(rootUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': '*/*',
+        'Origin': FRONTEND_URL
+      }
+    });
+    
+    console.log('Backend root check response:', {
+      status: rootResponse.status,
+      statusText: rootResponse.statusText,
+      ok: rootResponse.ok
+    });
+
+    // Then try the health endpoint
     const healthUrl = `${BACKEND_URL}/api/health`;
     console.log('Checking backend health at:', healthUrl);
     
-    const response = await fetch(healthUrl, {
+    const healthResponse = await fetch(healthUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -41,12 +60,12 @@ async function checkBackendHealth() {
     });
     
     console.log('Backend health check response:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
+      status: healthResponse.status,
+      statusText: healthResponse.statusText,
+      ok: healthResponse.ok
     });
     
-    return response.ok;
+    return rootResponse.ok || healthResponse.ok;
   } catch (error) {
     console.error('Backend health check failed:', error);
     return false;
