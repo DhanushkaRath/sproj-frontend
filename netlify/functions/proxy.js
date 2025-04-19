@@ -14,7 +14,6 @@ exports.handler = async (event, context) => {
     });
 
     // Extract the path after /api/
-    // Handle both /.netlify/functions/proxy/api/ and /api/ paths
     let path = event.path;
     if (path.startsWith('/.netlify/functions/proxy/api/')) {
       path = path.replace('/.netlify/functions/proxy/api/', '');
@@ -44,33 +43,64 @@ exports.handler = async (event, context) => {
       headers['Authorization'] = event.headers.authorization;
     }
 
-    // Make request to backend with timeout
+    // Make request to backend with timeout and retry logic
     let response;
-    try {
-      response = await fetch(backendUrl, {
-        method: event.httpMethod,
-        headers: headers,
-        body: event.body,
-        credentials: 'include',
-        timeout: 10000 // 10 second timeout
-      });
-    } catch (fetchError) {
-      console.error('Fetch error:', fetchError);
-      return {
-        statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Credentials': 'true'
-        },
-        body: JSON.stringify({
-          error: 'Fetch error',
-          message: fetchError.message,
-          details: fetchError.stack
-        })
-      };
+    let retryCount = 0;
+    const maxRetries = 3;
+    const timeout = 10000; // 10 second timeout
+
+    while (retryCount < maxRetries) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        console.log(`Attempt ${retryCount + 1} to fetch from backend:`, backendUrl);
+        
+        response = await fetch(backendUrl, {
+          method: event.httpMethod,
+          headers: headers,
+          body: event.body,
+          credentials: 'include',
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        
+        // Log response status
+        console.log(`Backend response status: ${response.status} ${response.statusText}`);
+        
+        // If we got a response, break the retry loop
+        break;
+      } catch (fetchError) {
+        retryCount++;
+        console.error(`Fetch attempt ${retryCount} failed:`, fetchError);
+        
+        if (retryCount === maxRetries) {
+          console.error('All fetch attempts failed');
+          return {
+            statusCode: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+              'Access-Control-Allow-Credentials': 'true'
+            },
+            body: JSON.stringify({
+              error: 'Fetch error',
+              message: fetchError.message,
+              details: fetchError.stack,
+              retryCount,
+              backendUrl
+            })
+          };
+        }
+        
+        // Wait before retrying (exponential backoff)
+        const backoffTime = Math.pow(2, retryCount) * 1000;
+        console.log(`Waiting ${backoffTime}ms before retry ${retryCount + 1}`);
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+      }
     }
 
     // Log backend response
@@ -105,7 +135,8 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({
           error: 'Parse error',
           message: error.message,
-          details: error.stack
+          details: error.stack,
+          contentType
         })
       };
     }
