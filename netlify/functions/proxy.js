@@ -1,8 +1,40 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
 
-const BACKEND_URL = "https://sproj-backend.onrender.com";
+// Load environment variables from .env file
+dotenv.config();
 
-exports.handler = async (event, context) => {
+const BACKEND_URL = process.env.BACKEND_URL || "https://sproj-backend.onrender.com";
+const NODE_ENV = process.env.NODE_ENV || "production";
+const FRONTEND_URL = "https://fed-storefront-frontend-dhanushka.netlify.app";
+
+console.log('Proxy function environment:', {
+  BACKEND_URL,
+  NODE_ENV,
+  FRONTEND_URL
+});
+
+// Common headers for all responses
+const corsHeaders = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': FRONTEND_URL,
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Credentials': 'true',
+  'Access-Control-Max-Age': '86400', // 24 hours
+  'Vary': 'Origin'
+};
+
+export const handler = async (event, context) => {
+  // Handle preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: corsHeaders,
+      body: ''
+    };
+  }
+
   try {
     // Log incoming request
     console.log('Incoming request:', {
@@ -10,7 +42,8 @@ exports.handler = async (event, context) => {
       method: event.httpMethod,
       headers: event.headers,
       query: event.queryStringParameters,
-      body: event.body
+      body: event.body,
+      origin: event.headers.origin || event.headers.Origin
     });
 
     // Extract the path after /api/
@@ -35,7 +68,8 @@ exports.handler = async (event, context) => {
     // Prepare headers for backend request
     const headers = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'Origin': FRONTEND_URL
     };
 
     // Add Authorization header if present
@@ -63,7 +97,8 @@ exports.handler = async (event, context) => {
             const headResponse = await fetch(backendUrl, {
               method: 'HEAD',
               headers: {
-                'Accept': '*/*'
+                'Accept': '*/*',
+                'Origin': FRONTEND_URL
               },
               signal: controller.signal
             });
@@ -71,7 +106,8 @@ exports.handler = async (event, context) => {
             console.log('HEAD request response:', {
               status: headResponse.status,
               statusText: headResponse.statusText,
-              ok: headResponse.ok
+              ok: headResponse.ok,
+              headers: Object.fromEntries(headResponse.headers.entries())
             });
             
             if (!headResponse.ok) {
@@ -83,13 +119,7 @@ exports.handler = async (event, context) => {
               // If the HEAD request fails, return a more specific error
               return {
                 statusCode: headResponse.status || 500,
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Access-Control-Allow-Origin': '*',
-                  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                  'Access-Control-Allow-Credentials': 'true'
-                },
+                headers: corsHeaders,
                 body: JSON.stringify({
                   error: 'Backend unavailable',
                   status: headResponse.status,
@@ -104,13 +134,7 @@ exports.handler = async (event, context) => {
             // If the HEAD request throws an error, return a more specific error
             return {
               statusCode: 503,
-              headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Credentials': 'true'
-              },
+              headers: corsHeaders,
               body: JSON.stringify({
                 error: 'Service Unavailable',
                 message: 'Backend service is not accessible',
@@ -144,13 +168,7 @@ exports.handler = async (event, context) => {
           console.error('All fetch attempts failed');
           return {
             statusCode: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-              'Access-Control-Allow-Credentials': 'true'
-            },
+            headers: corsHeaders,
             body: JSON.stringify({
               error: 'Fetch error',
               message: fetchError.message,
@@ -190,13 +208,7 @@ exports.handler = async (event, context) => {
       console.error('Error parsing response:', error);
       return {
         statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Credentials': 'true'
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           error: 'Parse error',
           message: error.message,
@@ -218,13 +230,7 @@ exports.handler = async (event, context) => {
       });
       return {
         statusCode: response.status,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Credentials': 'true'
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           error: 'Backend error',
           status: response.status,
@@ -237,13 +243,7 @@ exports.handler = async (event, context) => {
     // Return successful response
     return {
       statusCode: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Credentials': 'true'
-      },
+      headers: corsHeaders,
       body: JSON.stringify(data)
     };
 
@@ -251,13 +251,7 @@ exports.handler = async (event, context) => {
     console.error('Proxy error:', error);
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Credentials': 'true'
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         error: 'Proxy error',
         message: error.message,
