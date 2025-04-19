@@ -14,8 +14,24 @@ exports.handler = async (event, context) => {
     });
 
     // Extract the path after /api/
-    const path = event.path.replace('/.netlify/functions/proxy/api/', '');
+    // Handle both /.netlify/functions/proxy/api/ and /api/ paths
+    let path = event.path;
+    if (path.startsWith('/.netlify/functions/proxy/api/')) {
+      path = path.replace('/.netlify/functions/proxy/api/', '');
+    } else if (path.startsWith('/api/')) {
+      path = path.replace('/api/', '');
+    } else {
+      path = path.replace('/.netlify/functions/proxy/', '');
+    }
+
     const backendUrl = `${BACKEND_URL}/api/${path}`;
+
+    console.log('Making request to backend:', {
+      url: backendUrl,
+      method: event.httpMethod,
+      path,
+      originalPath: event.path
+    });
 
     // Prepare headers for backend request
     const headers = {
@@ -47,24 +63,44 @@ exports.handler = async (event, context) => {
     const contentType = response.headers.get('content-type');
     let data;
 
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-      console.log('Unexpected content type:', contentType);
+    try {
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        data = await response.text();
+        console.log('Unexpected content type:', contentType);
+      }
+    } catch (error) {
+      console.error('Error parsing response:', error);
+      throw new Error(`Failed to parse response: ${error.message}`);
     }
 
     // Log response data
     console.log('Response data:', data);
 
-    // If backend returned an error, throw it
+    // If backend returned an error, return it with proper status code
     if (response.status >= 400) {
       console.error('Backend error:', {
         status: response.status,
         statusText: response.statusText,
         data: data
       });
-      throw new Error(`Backend error: ${response.status} ${response.statusText}`);
+      return {
+        statusCode: response.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Credentials': 'true'
+        },
+        body: JSON.stringify({
+          error: 'Backend error',
+          status: response.status,
+          message: data.message || response.statusText,
+          details: data
+        })
+      };
     }
 
     // Return successful response
