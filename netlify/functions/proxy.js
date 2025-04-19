@@ -8,6 +8,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "https://sproj-backend.onrender.c
 const NODE_ENV = process.env.NODE_ENV || "production";
 const FRONTEND_URL = "https://fed-storefront-frontend-dhanushka.netlify.app";
 
+// Log environment configuration
 console.log('Proxy function environment:', {
   BACKEND_URL,
   NODE_ENV,
@@ -25,6 +26,33 @@ const corsHeaders = {
   'Vary': 'Origin'
 };
 
+// Function to check backend health
+async function checkBackendHealth() {
+  try {
+    const healthUrl = `${BACKEND_URL}/api/health`;
+    console.log('Checking backend health at:', healthUrl);
+    
+    const response = await fetch(healthUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Origin': FRONTEND_URL
+      }
+    });
+    
+    console.log('Backend health check response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Backend health check failed:', error);
+    return false;
+  }
+}
+
 export const handler = async (event, context) => {
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
@@ -36,6 +64,21 @@ export const handler = async (event, context) => {
   }
 
   try {
+    // Check backend health first
+    const isBackendHealthy = await checkBackendHealth();
+    if (!isBackendHealthy) {
+      console.error('Backend is not healthy');
+      return {
+        statusCode: 503,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          error: 'Service Unavailable',
+          message: 'Backend service is not accessible',
+          details: 'The backend server is not responding to health checks'
+        })
+      };
+    }
+
     // Log incoming request
     console.log('Incoming request:', {
       path: event.path,
@@ -90,61 +133,6 @@ export const handler = async (event, context) => {
 
         console.log(`Attempt ${retryCount + 1} to fetch from backend:`, backendUrl);
         
-        // Use a more direct approach to check if the backend is accessible
-        if (retryCount === 0) {
-          try {
-            // First, try a simple HEAD request to check if the backend is accessible
-            const headResponse = await fetch(backendUrl, {
-              method: 'HEAD',
-              headers: {
-                'Accept': '*/*',
-                'Origin': FRONTEND_URL
-              },
-              signal: controller.signal
-            });
-            
-            console.log('HEAD request response:', {
-              status: headResponse.status,
-              statusText: headResponse.statusText,
-              ok: headResponse.ok,
-              headers: Object.fromEntries(headResponse.headers.entries())
-            });
-            
-            if (!headResponse.ok) {
-              console.error('HEAD request failed:', {
-                status: headResponse.status,
-                statusText: headResponse.statusText
-              });
-              
-              // If the HEAD request fails, return a more specific error
-              return {
-                statusCode: headResponse.status || 500,
-                headers: corsHeaders,
-                body: JSON.stringify({
-                  error: 'Backend unavailable',
-                  status: headResponse.status,
-                  message: headResponse.statusText || 'Backend server is not responding correctly',
-                  details: 'The backend server returned an error status for a HEAD request'
-                })
-              };
-            }
-          } catch (headError) {
-            console.error('HEAD request error:', headError);
-            
-            // If the HEAD request throws an error, return a more specific error
-            return {
-              statusCode: 503,
-              headers: corsHeaders,
-              body: JSON.stringify({
-                error: 'Service Unavailable',
-                message: 'Backend service is not accessible',
-                details: headError.message || 'The backend server is not responding to HEAD requests'
-              })
-            };
-          }
-        }
-        
-        // If the HEAD request succeeds, proceed with the actual request
         response = await fetch(backendUrl, {
           method: event.httpMethod,
           headers: headers,
@@ -167,12 +155,12 @@ export const handler = async (event, context) => {
         if (retryCount === maxRetries) {
           console.error('All fetch attempts failed');
           return {
-            statusCode: 500,
+            statusCode: 502,
             headers: corsHeaders,
             body: JSON.stringify({
-              error: 'Fetch error',
-              message: fetchError.message,
-              details: fetchError.stack,
+              error: 'Bad Gateway',
+              message: 'Unable to connect to backend service',
+              details: fetchError.message,
               retryCount,
               backendUrl
             })
@@ -207,12 +195,12 @@ export const handler = async (event, context) => {
     } catch (error) {
       console.error('Error parsing response:', error);
       return {
-        statusCode: 500,
+        statusCode: 502,
         headers: corsHeaders,
         body: JSON.stringify({
-          error: 'Parse error',
-          message: error.message,
-          details: error.stack,
+          error: 'Bad Gateway',
+          message: 'Error parsing backend response',
+          details: error.message,
           contentType
         })
       };
@@ -250,12 +238,12 @@ export const handler = async (event, context) => {
   } catch (error) {
     console.error('Proxy error:', error);
     return {
-      statusCode: 500,
+      statusCode: 502,
       headers: corsHeaders,
       body: JSON.stringify({
-        error: 'Proxy error',
-        message: error.message,
-        details: error.stack
+        error: 'Bad Gateway',
+        message: 'Proxy error occurred',
+        details: error.message
       })
     };
   }
