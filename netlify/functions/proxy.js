@@ -45,7 +45,7 @@ async function checkBackendHealth() {
     console.log('Checking backend health endpoint:', healthUrl);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for cold starts
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for health check
     
     const healthResponse = await fetch(healthUrl, {
       method: 'GET',
@@ -182,8 +182,8 @@ export const handler = async (event, context) => {
     // Make request to backend with timeout and retry logic
     let response;
     let retryCount = 0;
-    const maxRetries = 3;
-    const timeout = 30000; // 30 second timeout for cold starts
+    const maxRetries = 2; // Reduce max retries to avoid timeouts
+    const timeout = 8000; // 8 second timeout to avoid Netlify function timeout
 
     while (retryCount < maxRetries) {
       try {
