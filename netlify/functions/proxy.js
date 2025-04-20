@@ -4,7 +4,18 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
+// Backend URL configuration with fallback and validation
 const BACKEND_URL = process.env.BACKEND_URL || "https://sproj-backend.onrender.com";
+console.log('Using backend URL:', BACKEND_URL);
+
+// Validate backend URL format
+try {
+  new URL(BACKEND_URL);
+} catch (error) {
+  console.error('Invalid backend URL:', BACKEND_URL);
+  throw new Error('Invalid backend URL configuration');
+}
+
 const NODE_ENV = process.env.NODE_ENV || "production";
 const FRONTEND_URL = "https://fed-storefront-frontend-dhanushka.netlify.app";
 
@@ -18,8 +29,8 @@ console.log('Proxy function environment:', {
 // Common headers for all responses
 const corsHeaders = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': FRONTEND_URL,
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Allow-Origin': FRONTEND_URL, // Set specific origin
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Origin, Accept, Cookie',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400', // 24 hours
@@ -29,50 +40,65 @@ const corsHeaders = {
 // Function to check backend health
 async function checkBackendHealth() {
   try {
-    // First try a simple GET request to the root endpoint
-    const rootUrl = BACKEND_URL;
-    console.log('Checking backend root URL:', rootUrl);
+    // First try a simple GET request to the root endpoint with longer timeout
+    const rootUrl = `${BACKEND_URL}/api/health`;
+    console.log('Checking backend health endpoint:', rootUrl);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for cold starts
     
     const rootResponse = await fetch(rootUrl, {
       method: 'GET',
       headers: {
         'Accept': '*/*',
-        'Origin': FRONTEND_URL
-      }
+        'Origin': FRONTEND_URL,
+        'User-Agent': 'Netlify-Proxy-Health-Check'
+      },
+      signal: controller.signal
     });
     
-    console.log('Backend root check response:', {
-      status: rootResponse.status,
-      statusText: rootResponse.statusText,
-      ok: rootResponse.ok
-    });
-
-    // Then try the health endpoint
-    const healthUrl = `${BACKEND_URL}/api/health`;
-    console.log('Checking backend health at:', healthUrl);
-    
-    const healthResponse = await fetch(healthUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Origin': FRONTEND_URL
-      }
-    });
+    clearTimeout(timeoutId);
     
     console.log('Backend health check response:', {
-      status: healthResponse.status,
-      statusText: healthResponse.statusText,
-      ok: healthResponse.ok
+      status: rootResponse.status,
+      statusText: rootResponse.statusText,
+      ok: rootResponse.ok,
+      headers: Object.fromEntries(rootResponse.headers.entries())
     });
-    
-    return rootResponse.ok || healthResponse.ok;
+
+    if (!rootResponse.ok) {
+      // If the service is starting up, wait a bit and retry
+      if (rootResponse.status === 503) {
+        console.log('Backend service might be starting up, waiting 5 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        return await checkBackendHealth();
+      }
+    }
+
+    return rootResponse.ok;
   } catch (error) {
-    console.error('Backend health check failed:', error);
+    console.error('Backend health check failed:', {
+      error: error.message,
+      type: error.name,
+      code: error.code,
+      url: BACKEND_URL
+    });
     return false;
   }
 }
 
 export const handler = async (event, context) => {
+  // Log environment and request details
+  console.log('Function invocation:', {
+    functionId: context.functionID,
+    requestId: event.requestContext?.requestId,
+    timestamp: new Date().toISOString(),
+    backendUrl: BACKEND_URL,
+    path: event.path,
+    method: event.httpMethod,
+    headers: event.headers
+  });
+
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -83,17 +109,21 @@ export const handler = async (event, context) => {
   }
 
   try {
-    // Check backend health first
+    // Check backend health first with detailed logging
+    console.log('Starting backend health check...');
     const isBackendHealthy = await checkBackendHealth();
+    console.log('Backend health check result:', isBackendHealthy);
+
     if (!isBackendHealthy) {
-      console.error('Backend is not healthy');
+      console.error('Backend is not healthy, returning 503');
       return {
         statusCode: 503,
         headers: corsHeaders,
         body: JSON.stringify({
           error: 'Service Unavailable',
           message: 'Backend service is not accessible',
-          details: 'The backend server is not responding to health checks'
+          details: 'The backend service might be in a cold start state. Please try again in a few moments.',
+          backendUrl: BACKEND_URL
         })
       };
     }
@@ -105,7 +135,8 @@ export const handler = async (event, context) => {
       headers: event.headers,
       query: event.queryStringParameters,
       body: event.body,
-      origin: event.headers.origin || event.headers.Origin
+      origin: event.headers.origin || event.headers.Origin,
+      cookies: event.headers.cookie
     });
 
     // Extract the path after /api/
@@ -114,9 +145,12 @@ export const handler = async (event, context) => {
       path = path.replace('/.netlify/functions/proxy/api/', '');
     } else if (path.startsWith('/api/')) {
       path = path.replace('/api/', '');
-    } else {
+    } else if (path.startsWith('/.netlify/functions/proxy/')) {
       path = path.replace('/.netlify/functions/proxy/', '');
     }
+
+    // Ensure path doesn't start with a slash
+    path = path.replace(/^\/+/, '');
 
     const backendUrl = `${BACKEND_URL}/api/${path}`;
 
@@ -131,7 +165,8 @@ export const handler = async (event, context) => {
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Origin': FRONTEND_URL
+      'Origin': FRONTEND_URL,
+      'User-Agent': 'Netlify-Proxy'
     };
 
     // Add Authorization header if present
@@ -139,18 +174,27 @@ export const handler = async (event, context) => {
       headers['Authorization'] = event.headers.authorization;
     }
 
+    // Add Cookie header if present
+    if (event.headers.cookie) {
+      headers['Cookie'] = event.headers.cookie;
+    }
+
     // Make request to backend with timeout and retry logic
     let response;
     let retryCount = 0;
     const maxRetries = 3;
-    const timeout = 10000; // 10 second timeout
+    const timeout = 30000; // 30 second timeout for cold starts
 
     while (retryCount < maxRetries) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-        console.log(`Attempt ${retryCount + 1} to fetch from backend:`, backendUrl);
+        console.log(`Attempt ${retryCount + 1} to fetch from backend:`, {
+          url: backendUrl,
+          method: event.httpMethod,
+          headers: headers
+        });
         
         response = await fetch(backendUrl, {
           method: event.httpMethod,
@@ -163,13 +207,32 @@ export const handler = async (event, context) => {
         clearTimeout(timeoutId);
         
         // Log response status
-        console.log(`Backend response status: ${response.status} ${response.statusText}`);
+        console.log(`Backend response status:`, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
         
-        // If we got a response, break the retry loop
-        break;
+        // If we got a non-503 response, break the retry loop
+        if (response.status !== 503) {
+          break;
+        }
+        
+        // If we got a 503, wait and retry
+        retryCount++;
+        if (retryCount < maxRetries) {
+          const backoffTime = Math.pow(2, retryCount) * 1000;
+          console.log(`Got 503, waiting ${backoffTime}ms before retry ${retryCount + 1}`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
       } catch (fetchError) {
         retryCount++;
-        console.error(`Fetch attempt ${retryCount} failed:`, fetchError);
+        console.error(`Fetch attempt ${retryCount} failed:`, {
+          error: fetchError.message,
+          type: fetchError.name,
+          code: fetchError.code,
+          url: backendUrl
+        });
         
         if (retryCount === maxRetries) {
           console.error('All fetch attempts failed');
@@ -179,7 +242,8 @@ export const handler = async (event, context) => {
             body: JSON.stringify({
               error: 'Bad Gateway',
               message: 'Unable to connect to backend service',
-              details: fetchError.message,
+              details: 'The backend service is not responding. It might be in a cold start state.',
+              error: fetchError.message,
               retryCount,
               backendUrl
             })
@@ -192,13 +256,6 @@ export const handler = async (event, context) => {
         await new Promise(resolve => setTimeout(resolve, backoffTime));
       }
     }
-
-    // Log backend response
-    console.log('Backend response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
-    });
 
     // Get response content type
     const contentType = response.headers.get('content-type');
@@ -255,14 +312,25 @@ export const handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('Proxy error:', error);
+    console.error('Proxy error:', {
+      error: error.message,
+      stack: error.stack,
+      type: error.name,
+      code: error.code,
+      url: BACKEND_URL
+    });
+
     return {
       statusCode: 502,
       headers: corsHeaders,
       body: JSON.stringify({
         error: 'Bad Gateway',
         message: 'Proxy error occurred',
-        details: error.message
+        details: 'An unexpected error occurred while trying to reach the backend service.',
+        error: error.message,
+        type: error.name,
+        code: error.code,
+        backendUrl: BACKEND_URL
       })
     };
   }
