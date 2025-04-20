@@ -29,7 +29,7 @@ console.log('Proxy function environment:', {
 // Common headers for all responses
 const corsHeaders = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*', // Allow all origins temporarily for debugging
+  'Access-Control-Allow-Origin': '*', // Allow all origins for now
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Origin, Accept, Cookie',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Credentials': 'true',
@@ -40,14 +40,14 @@ const corsHeaders = {
 // Function to check backend health
 async function checkBackendHealth() {
   try {
-    // First try a simple GET request to the root endpoint with longer timeout
-    const rootUrl = `${BACKEND_URL}/api/health`;
-    console.log('Checking backend health endpoint:', rootUrl);
+    // Use the products endpoint for health check since /api/health doesn't exist
+    const healthUrl = `${BACKEND_URL}/api/products`;
+    console.log('Checking backend health endpoint:', healthUrl);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for cold starts
     
-    const rootResponse = await fetch(rootUrl, {
+    const healthResponse = await fetch(healthUrl, {
       method: 'GET',
       headers: {
         'Accept': '*/*',
@@ -60,22 +60,22 @@ async function checkBackendHealth() {
     clearTimeout(timeoutId);
     
     console.log('Backend health check response:', {
-      status: rootResponse.status,
-      statusText: rootResponse.statusText,
-      ok: rootResponse.ok,
-      headers: Object.fromEntries(rootResponse.headers.entries())
+      status: healthResponse.status,
+      statusText: healthResponse.statusText,
+      ok: healthResponse.ok,
+      headers: Object.fromEntries(healthResponse.headers.entries())
     });
 
-    if (!rootResponse.ok) {
+    if (!healthResponse.ok) {
       // If the service is starting up, wait a bit and retry
-      if (rootResponse.status === 503) {
+      if (healthResponse.status === 503) {
         console.log('Backend service might be starting up, waiting 5 seconds...');
         await new Promise(resolve => setTimeout(resolve, 5000));
         return await checkBackendHealth();
       }
     }
 
-    return rootResponse.ok;
+    return healthResponse.ok;
   } catch (error) {
     console.error('Backend health check failed:', {
       error: error.message,
@@ -330,7 +330,8 @@ export const handler = async (event, context) => {
         error: error.message,
         type: error.name,
         code: error.code,
-        backendUrl: BACKEND_URL
+        backendUrl: BACKEND_URL,
+        timestamp: new Date().toISOString()
       })
     };
   }
