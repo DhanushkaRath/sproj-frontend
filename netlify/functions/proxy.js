@@ -29,7 +29,7 @@ console.log('Proxy function environment:', {
 // Common headers for all responses
 const corsHeaders = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': FRONTEND_URL, // Set specific origin
+  'Access-Control-Allow-Origin': '*', // Allow all origins temporarily for debugging
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Origin, Accept, Cookie',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Credentials': 'true',
