@@ -109,24 +109,24 @@ export const handler = async (event, context) => {
   }
 
   try {
-    // Check backend health first with detailed logging
-    console.log('Starting backend health check...');
-    const isBackendHealthy = await checkBackendHealth();
-    console.log('Backend health check result:', isBackendHealthy);
+    // Skip health check for now to see if that's causing the issue
+    // console.log('Starting backend health check...');
+    // const isBackendHealthy = await checkBackendHealth();
+    // console.log('Backend health check result:', isBackendHealthy);
 
-    if (!isBackendHealthy) {
-      console.error('Backend is not healthy, returning 503');
-      return {
-        statusCode: 503,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          error: 'Service Unavailable',
-          message: 'Backend service is not accessible',
-          details: 'The backend service might be in a cold start state. Please try again in a few moments.',
-          backendUrl: BACKEND_URL
-        })
-      };
-    }
+    // if (!isBackendHealthy) {
+    //   console.error('Backend is not healthy, returning 503');
+    //   return {
+    //     statusCode: 503,
+    //     headers: corsHeaders,
+    //     body: JSON.stringify({
+    //       error: 'Service Unavailable',
+    //       message: 'Backend service is not accessible',
+    //       details: 'The backend service might be in a cold start state. Please try again in a few moments.',
+    //       backendUrl: BACKEND_URL
+    //     })
+    //   };
+    // }
 
     // Log incoming request
     console.log('Incoming request:', {
@@ -335,4 +335,4 @@ export const handler = async (event, context) => {
       })
     };
   }
-}; 
+};
