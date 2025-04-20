@@ -19,34 +19,13 @@ const corsHeaders = {
   'Vary': 'Origin'
 };
 
-// Simple health check function
-const checkBackendHealth = async () => {
-  try {
-    console.log('Checking backend health...');
-    const response = await fetch(`${BACKEND_URL}/api/products`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    });
-    
-    console.log('Backend health check status:', response.status);
-    return response.ok;
-  } catch (error) {
-    console.error('Backend health check failed:', error.message);
-    return false;
-  }
-};
-
 export const handler = async (event, context) => {
   console.log('Function invocation:', {
     functionId: context.functionID,
     requestId: event.requestContext?.requestId,
     timestamp: new Date().toISOString(),
     path: event.path,
-    method: event.httpMethod,
-    userAgent: event.headers['user-agent']
+    method: event.httpMethod
   });
 
   // Handle preflight requests
@@ -58,30 +37,15 @@ export const handler = async (event, context) => {
     };
   }
 
-  // Check backend health before proceeding
-  const isBackendHealthy = await checkBackendHealth();
-  if (!isBackendHealthy) {
-    console.error('Backend is not healthy, returning 503');
-    return {
-      statusCode: 503,
-      headers: corsHeaders,
-      body: JSON.stringify({
-        error: 'Service Unavailable',
-        message: 'Backend service is currently unavailable',
-        timestamp: new Date().toISOString()
-      })
-    };
-  }
-
   try {
     // Extract the path after /api/
     let path = event.path;
-    if (path.startsWith('/.netlify/functions/proxy/api/')) {
-      path = path.replace('/.netlify/functions/proxy/api/', '');
+    if (path.startsWith('/.netlify/functions/simple-proxy/api/')) {
+      path = path.replace('/.netlify/functions/simple-proxy/api/', '');
     } else if (path.startsWith('/api/')) {
       path = path.replace('/api/', '');
-    } else if (path.startsWith('/.netlify/functions/proxy/')) {
-      path = path.replace('/.netlify/functions/proxy/', '');
+    } else if (path.startsWith('/.netlify/functions/simple-proxy/')) {
+      path = path.replace('/.netlify/functions/simple-proxy/', '');
     }
 
     // Ensure path doesn't start with a slash
@@ -93,8 +57,7 @@ export const handler = async (event, context) => {
     // Prepare headers for backend request
     const headers = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': event.headers['user-agent'] || 'Netlify-Function'
+      'Accept': 'application/json'
     };
 
     // Add Authorization header if present
@@ -107,19 +70,9 @@ export const handler = async (event, context) => {
       headers['Cookie'] = event.headers.cookie;
     }
 
-    // Add Origin header if present
-    if (event.headers.origin) {
-      headers['Origin'] = event.headers.origin;
-    }
-
-    // Add Referer header if present
-    if (event.headers.referer) {
-      headers['Referer'] = event.headers.referer;
-    }
-
     // Make request to backend with a simple timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
     const response = await fetch(backendUrl, {
       method: event.httpMethod,
@@ -151,9 +104,6 @@ export const handler = async (event, context) => {
 
   } catch (error) {
     console.error('Proxy error:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('Error type:', error.name);
-    console.error('Error code:', error.code);
     
     return {
       statusCode: 502,
@@ -161,9 +111,8 @@ export const handler = async (event, context) => {
       body: JSON.stringify({
         error: 'Bad Gateway',
         message: 'Proxy error occurred',
-        details: error.message,
-        timestamp: new Date().toISOString()
+        details: error.message
       })
     };
   }
-};
+}; 
