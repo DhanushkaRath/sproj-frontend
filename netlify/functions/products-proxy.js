@@ -120,13 +120,22 @@ export const handler = async (event, context) => {
     console.error('Error type:', error.name);
     console.error('Error code:', error.code);
     
+    // Try to get more information about the error
+    let errorDetails = error.message;
+    if (error.cause) {
+      errorDetails += `\nCause: ${error.cause}`;
+    }
+    if (error.code) {
+      errorDetails += `\nCode: ${error.code}`;
+    }
+    
     return {
       statusCode: 502,
       headers: corsHeaders,
       body: JSON.stringify({
         error: 'Bad Gateway',
         message: 'Products proxy error occurred',
-        details: error.message,
+        details: errorDetails,
         timestamp: new Date().toISOString(),
         path: event.path,
         backendUrl: `${BACKEND_URL}/api/${event.path.replace(/^\/+/, '')}`

@@ -38,12 +38,18 @@ export const api = createApi({
           console.error('Products API error:', {
             status: response.status,
             statusText: response.statusText,
-            data: result
+            data: result,
+            timestamp: new Date().toISOString()
           });
         }
         return response.status === 200;
       },
       retry: (failureCount, error) => {
+        console.log('Products API retry attempt:', {
+          failureCount,
+          error: error?.data || error,
+          timestamp: new Date().toISOString()
+        });
         if (failureCount < 3) {
           return true;
         }
@@ -57,12 +63,18 @@ export const api = createApi({
           console.error('Product API error:', {
             status: response.status,
             statusText: response.statusText,
-            data: result
+            data: result,
+            timestamp: new Date().toISOString()
           });
         }
         return response.status === 200;
       },
       retry: (failureCount, error) => {
+        console.log('Product API retry attempt:', {
+          failureCount,
+          error: error?.data || error,
+          timestamp: new Date().toISOString()
+        });
         if (failureCount < 3) {
           return true;
         }
@@ -76,12 +88,18 @@ export const api = createApi({
           console.error('Categories API error:', {
             status: response.status,
             statusText: response.statusText,
-            data: result
+            data: result,
+            timestamp: new Date().toISOString()
           });
         }
         return response.status === 200;
       },
       retry: (failureCount, error) => {
+        console.log('Categories API retry attempt:', {
+          failureCount,
+          error: error?.data || error,
+          timestamp: new Date().toISOString()
+        });
         if (failureCount < 3) {
           return true;
         }
