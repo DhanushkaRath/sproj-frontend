@@ -34,7 +34,13 @@ export const handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
-      headers: corsHeaders,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400'
+      },
       body: ''
     };
   }
@@ -52,7 +58,11 @@ export const handler = async (event, context) => {
     path = path.replace(/^\/+/, '');
 
     const backendUrl = `${BACKEND_URL}/api/${path}`;
-    console.log('Making request to backend:', backendUrl);
+    console.log('Making request to backend:', {
+      url: backendUrl,
+      method: event.httpMethod,
+      headers: event.headers
+    });
 
     // Prepare headers for backend request
     const headers = {
@@ -81,7 +91,7 @@ export const handler = async (event, context) => {
       headers['Referer'] = event.headers.referer;
     }
 
-    // Make request to backend with a simple timeout
+    // Make request to backend with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -93,52 +103,55 @@ export const handler = async (event, context) => {
     });
 
     clearTimeout(timeoutId);
-    
-    console.log('Backend response status:', response.status);
-    console.log('Backend response headers:', Object.fromEntries(response.headers.entries()));
 
-    // Get response content
-    const contentType = response.headers.get('content-type');
-    let data;
+    console.log('Backend response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
 
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
+    const data = await response.json();
 
-    // Return response
     return {
       statusCode: response.status,
-      headers: corsHeaders,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Credentials': 'true'
+      },
       body: JSON.stringify(data)
     };
 
   } catch (error) {
-    console.error('Products proxy error:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('Error type:', error.name);
-    console.error('Error code:', error.code);
-    
-    // Try to get more information about the error
-    let errorDetails = error.message;
-    if (error.cause) {
-      errorDetails += `\nCause: ${error.cause}`;
-    }
-    if (error.code) {
-      errorDetails += `\nCode: ${error.code}`;
-    }
-    
+    console.error('Products proxy error:', {
+      message: error.message,
+      stack: error.stack,
+      type: error.name,
+      code: error.code,
+      cause: error.cause,
+      timestamp: new Date().toISOString()
+    });
+
     return {
       statusCode: 502,
-      headers: corsHeaders,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Credentials': 'true'
+      },
       body: JSON.stringify({
         error: 'Bad Gateway',
-        message: 'Products proxy error occurred',
-        details: errorDetails,
-        timestamp: new Date().toISOString(),
-        path: event.path,
-        backendUrl: `${BACKEND_URL}/api/${event.path.replace(/^\/+/, '')}`
+        message: error.message,
+        details: {
+          type: error.name,
+          code: error.code,
+          cause: error.cause,
+          timestamp: new Date().toISOString()
+        }
       })
     };
   }
