@@ -1,38 +1,28 @@
 import fetch from 'node-fetch';
-import dotenv from 'dotenv';
 
-// Load environment variables from .env file
-dotenv.config();
-
-// Backend URL configuration with fallback
-const BACKEND_URL = process.env.BACKEND_URL || "https://sproj-backend.onrender.com";
-console.log('Using backend URL:', BACKEND_URL);
-
-// Common headers for all responses
-const corsHeaders = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Origin, Accept, Cookie',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Credentials': 'true',
-  'Access-Control-Max-Age': '86400',
-  'Vary': 'Origin'
-};
+const BACKEND_URL = 'https://sproj-backend.onrender.com';
 
 export const handler = async (event, context) => {
-  console.log('Function invocation:', {
+  console.log('Simple proxy function invocation:', {
     functionId: context.functionID,
     requestId: event.requestContext?.requestId,
     timestamp: new Date().toISOString(),
     path: event.path,
-    method: event.httpMethod
+    method: event.httpMethod,
+    headers: event.headers
   });
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
-      headers: corsHeaders,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400'
+      },
       body: ''
     };
   }
@@ -44,74 +34,96 @@ export const handler = async (event, context) => {
       path = path.replace('/.netlify/functions/simple-proxy/api/', '');
     } else if (path.startsWith('/api/')) {
       path = path.replace('/api/', '');
-    } else if (path.startsWith('/.netlify/functions/simple-proxy/')) {
-      path = path.replace('/.netlify/functions/simple-proxy/', '');
     }
 
     // Ensure path doesn't start with a slash
     path = path.replace(/^\/+/, '');
 
+    // Only allow products and categories endpoints
+    if (!['products', 'categories'].includes(path)) {
+      return {
+        statusCode: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          error: 'Not Found',
+          message: 'Only products and categories endpoints are supported'
+        })
+      };
+    }
+
     const backendUrl = `${BACKEND_URL}/api/${path}`;
-    console.log('Making request to backend:', backendUrl);
+    console.log('Making request to backend:', {
+      url: backendUrl,
+      method: event.httpMethod,
+      headers: event.headers
+    });
 
-    // Prepare headers for backend request
-    const headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
-
-    // Add Authorization header if present
-    if (event.headers.authorization) {
-      headers['Authorization'] = event.headers.authorization;
-    }
-
-    // Add Cookie header if present
-    if (event.headers.cookie) {
-      headers['Cookie'] = event.headers.cookie;
-    }
-
-    // Make request to backend with a simple timeout
+    // Make request to backend with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(backendUrl, {
       method: event.httpMethod,
-      headers: headers,
-      body: event.body,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
-    
-    console.log('Backend response status:', response.status);
 
-    // Get response content
-    const contentType = response.headers.get('content-type');
-    let data;
+    console.log('Backend response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
 
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
+    const data = await response.json();
 
-    // Return response
     return {
       statusCode: response.status,
-      headers: corsHeaders,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Credentials': 'true'
+      },
       body: JSON.stringify(data)
     };
 
   } catch (error) {
-    console.error('Proxy error:', error.message);
-    
+    console.error('Simple proxy error:', {
+      message: error.message,
+      stack: error.stack,
+      type: error.name,
+      code: error.code,
+      cause: error.cause,
+      timestamp: new Date().toISOString()
+    });
+
     return {
       statusCode: 502,
-      headers: corsHeaders,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Credentials': 'true'
+      },
       body: JSON.stringify({
         error: 'Bad Gateway',
-        message: 'Proxy error occurred',
-        details: error.message
+        message: error.message,
+        details: {
+          type: error.name,
+          code: error.code,
+          cause: error.cause,
+          timestamp: new Date().toISOString()
+        }
       })
     };
   }

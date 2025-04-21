@@ -6,7 +6,7 @@ const isDevelopment = import.meta.env.MODE === 'development' || window.location.
 const baseQuery = fetchBaseQuery({
   baseUrl: isDevelopment 
     ? 'http://localhost:8000/api'
-    : '/.netlify/functions/products-proxy/api',
+    : '/.netlify/functions/simple-proxy/api',
   prepareHeaders: async (headers, { getState, endpoint }) => {
     // Only add auth header for endpoints that require it
     if (endpoint === 'createProduct' || endpoint === 'getOrder') {
@@ -25,7 +25,7 @@ const baseQuery = fetchBaseQuery({
 console.log('API Configuration:', {
   mode: import.meta.env.MODE,
   isDevelopment,
-  baseUrl: isDevelopment ? 'http://localhost:8000/api' : '/.netlify/functions/products-proxy/api'
+  baseUrl: isDevelopment ? 'http://localhost:8000/api' : '/.netlify/functions/simple-proxy/api'
 });
 
 export const api = createApi({
