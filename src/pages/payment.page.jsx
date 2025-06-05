@@ -36,6 +36,7 @@ function PaymentPage() {
   const [orderId, setOrderId] = useState(null);
   const userId = useSelector((state) => state.user?.id);
   const shippingAddress = location.state?.shippingAddress;
+  const paymentMethod = location.state?.paymentMethod;
 
   console.log("User ID:", userId); // Check if this logs the correct ID
 
@@ -103,14 +104,25 @@ function PaymentPage() {
         throw new Error("Authentication token not available");
       }
 
+      // Calculate total with tax
+      const subtotal = cart.reduce((acc, item) => {
+        const price = Number(item.price || item.product?.price || 0);
+        const quantity = Number(item.quantity || 1);
+        return acc + (price * quantity);
+      }, 0);
+      const tax = subtotal * 0.1; // 10% tax
+      const total = subtotal + tax;
+
       const orderDetails = {
         items: cart.map(item => ({
-          productId: item.id || item._id || `PROD_${Date.now()}`, // Ensure we have a productId
+          productId: item.id || item._id || `PROD_${Date.now()}`,
           name: item.name,
           price: item.price,
           quantity: item.quantity
         })),
-        total: calculateTotal(),
+        total: total,
+        subtotal: subtotal,
+        tax: tax,
         shippingAddress: {
           line_1: shippingAddress.line_1,
           line_2: shippingAddress.line_2,
@@ -118,10 +130,12 @@ function PaymentPage() {
           state: shippingAddress.state,
           zip_code: shippingAddress.zip_code,
           phone: shippingAddress.phone
-        }
+        },
+        paymentMethod: location.state?.paymentMethod,
+        paymentStatus: location.state?.paymentMethod === "cash_on_delivery" ? "PENDING" : "PAID"
       };
 
-      console.log("Sending order details:", orderDetails); // Debug log
+      console.log("Sending order details:", orderDetails);
 
       const response = await fetch("http://localhost:8000/api/orders", {
         method: 'POST',
@@ -140,13 +154,15 @@ function PaymentPage() {
       const result = await response.json();
       console.log('Order submitted successfully:', result);
       setOrderId(result.orderId);
-      toast.success("Order placed successfully!");
       
-      // Clear cart after successful order
-      dispatch(clearCart());
-      
-      // Navigate to order confirmation
-      navigate("/shop/complete", { state: { orderId: result.orderId } });
+      navigate("/shop/complete", { 
+        state: { 
+          orderId: result.orderId,
+          paymentStatus: location.state?.paymentMethod === "cash_on_delivery" ? "PENDING" : "PAID",
+          paymentMethod: location.state?.paymentMethod,
+          total: total
+        } 
+      });
 
     } catch (error) {
       console.error('Payment process - Error:', error);
@@ -200,6 +216,15 @@ function PaymentPage() {
           </div>
 
           <div className="mt-6">
+            <h3 className="text-xl font-semibold mb-4">Payment Method</h3>
+            <p className="text-gray-600">
+              {paymentMethod === "cash_on_delivery" ? "Cash on Delivery" :
+               paymentMethod === "bank_payment" ? "Bank Payment" :
+               paymentMethod === "card_payment" ? "Card Payment" : "Not specified"}
+            </p>
+          </div>
+
+          <div className="mt-6">
             <h3 className="text-xl font-semibold mb-4">Shipping Address</h3>
             <div className="space-y-2 text-gray-600">
               <p>{shippingAddress.line_1}</p>
@@ -232,7 +257,9 @@ function PaymentPage() {
               size="lg"
               disabled={isCreatingOrder || isProcessing}
             >
-              {isCreatingOrder || isProcessing ? "Processing..." : `Pay $${total.toFixed(2)}`}
+              {isCreatingOrder || isProcessing ? "Processing..." : 
+               paymentMethod === "cash_on_delivery" ? "Place Order" : 
+               `Pay $${total.toFixed(2)}`}
             </Button>
           </div>
 

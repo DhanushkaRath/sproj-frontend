@@ -203,13 +203,39 @@ function OrdersPage() {
               )}
 
               <div className="mt-6 border-t pt-6">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handlePayClick(order)}
-                >
-                  Pay
-                </Button>
+                <div className="mt-4">
+                  <p className="text-sm">
+                    Payment Status:{" "}
+                    <span className={`font-medium ${
+                      order.paymentMethod === "cash_on_delivery" 
+                        ? "text-yellow-600" 
+                        : "text-green-600"
+                    }`}>
+                      {order.paymentMethod === "cash_on_delivery" 
+                        ? "Pending (Cash on Delivery)" 
+                        : "Paid"}
+                    </span>
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Payment Method: {
+                      order.paymentMethod === "cash_on_delivery" ? "Cash on Delivery" :
+                      order.paymentMethod === "bank_payment" ? "Bank Payment" :
+                      order.paymentMethod === "card_payment" ? "Card Payment" : "Not specified"
+                    }
+                  </p>
+                </div>
+
+                {order.paymentMethod === "cash_on_delivery" && (
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => handlePayClick(order)}
+                      className="w-full"
+                    >
+                      Pay Now
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
           ))}

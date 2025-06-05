@@ -89,10 +89,14 @@ const ShippingAddressForm = ({ cart }) => {
         return;
       }
 
-      // Simplified navigation - just go to payment with shipping info
+      // Get the payment method from the parent component
+      const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value;
+      
+      // Navigate to payment with both shipping info and payment method
       navigate("/shop/payment", { 
         state: { 
-          shippingAddress: values
+          shippingAddress: values,
+          paymentMethod: paymentMethod
         }
       });
       

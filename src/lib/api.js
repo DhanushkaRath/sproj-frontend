@@ -121,7 +121,32 @@ export const api = createApi({
       })
     }),
     getOrder: builder.query({
-      query: (orderId) => `orders/${orderId}`
+      query: (orderId) => ({
+        url: `orders/${orderId}`,
+        method: 'GET',
+      }),
+      validateStatus: (response, result) => {
+        if (response.status !== 200) {
+          console.error('Order API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: result,
+            timestamp: new Date().toISOString()
+          });
+        }
+        return response.status === 200;
+      },
+      retry: (failureCount, error) => {
+        console.log('Order API retry attempt:', {
+          failureCount,
+          error: error?.data || error,
+          timestamp: new Date().toISOString()
+        });
+        if (failureCount < 3) {
+          return true;
+        }
+        return false;
+      }
     })
   })
 });
