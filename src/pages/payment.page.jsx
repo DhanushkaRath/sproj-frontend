@@ -160,7 +160,13 @@ function PaymentPage() {
           orderId: result.orderId,
           paymentStatus: location.state?.paymentMethod === "cash_on_delivery" ? "PENDING" : "PAID",
           paymentMethod: location.state?.paymentMethod,
-          total: total
+          total: total,
+          items: cart.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          shippingAddress: shippingAddress
         } 
       });
 

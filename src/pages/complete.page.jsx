@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { useGetOrderQuery } from "@/lib/api";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 
 function CompletePage() {
   const location = useLocation();
@@ -10,6 +10,7 @@ function CompletePage() {
   const { getToken, isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // Get orderId and payment details from either location state or URL params
   const orderId = location.state?.orderId || searchParams.get('orderId');
@@ -17,94 +18,54 @@ function CompletePage() {
   const paymentMethod = location.state?.paymentMethod || searchParams.get('paymentMethod');
   const total = location.state?.total;
 
-  // Debug log to check orderId
-  console.log('Order ID:', orderId);
-
-  // Fetch token
+  // Add this to ensure orderId is a string
   useEffect(() => {
-    const fetchToken = async () => {
-      if (isAuthLoaded && isSignedIn) {
-        try {
-          const authToken = await getToken();
-          setToken(authToken);
-        } catch (error) {
-          console.error('Error getting token:', error);
-        }
-      }
-      setIsLoading(false);
-    };
-    fetchToken();
-  }, [isAuthLoaded, isSignedIn, getToken]);
-
-  // Query order data - Make sure orderId is a string
-  const { data: orderData, error } = useGetOrderQuery(
-    typeof orderId === 'string' ? orderId : null,
-    {
-      skip: !token || !orderId,
-      pollingInterval: 0
+    if (orderId && typeof orderId === 'object') {
+      console.error('Invalid orderId format:', orderId);
+      setError('Invalid order ID format');
     }
-  );
+  }, [orderId]);
 
-  // Debug log to check orderData
-  console.log('Order Data:', orderData);
+  // Remove the useGetOrderQuery hook since it's causing issues
+  // Instead, we'll use the data from location state
 
-  // In the complete page, add these console logs
-  console.log('Location state:', location.state);
-  console.log('Total from location state:', location.state?.total);
-  console.log('Order data:', orderData);
-  console.log('Total from order data:', orderData?.total);
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const authToken = await getToken();
+        setToken(authToken);
+      } catch (error) {
+        console.error("Error getting token:", error);
+        setError("Failed to authenticate");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Loading state
-  if (isLoading || !isAuthLoaded) {
-    return (
-      <main className="max-w-4xl mx-auto px-8 py-6">
-        <h2 className="text-4xl font-bold">Loading...</h2>
-        <p className="mt-4 text-gray-600">Please wait while we load your order details...</p>
-      </main>
-    );
+    if (isAuthLoaded) {
+      initializeAuth();
+    }
+  }, [isAuthLoaded, getToken]);
+
+  if (!isAuthLoaded || isLoading) {
+    return <div>Loading...</div>;
   }
 
-  // Not signed in
   if (!isSignedIn) {
-    return (
-      <main className="max-w-4xl mx-auto px-8 py-6">
-        <h2 className="text-4xl font-bold text-red-600">Authentication Required</h2>
-        <p className="mt-4">Please sign in to view your order.</p>
-        <Button asChild className="mt-4">
-          <Link to="/sign-in">Sign In</Link>
-        </Button>
-      </main>
-    );
+    return <Navigate to="/login" />;
   }
 
-  // No order ID
   if (!orderId) {
-    return (
-      <main className="max-w-4xl mx-auto px-8 py-6">
-        <h2 className="text-4xl font-bold text-red-600">Order Not Found</h2>
-        <p className="mt-4">No order information available.</p>
-        <Button asChild className="mt-4">
-          <Link to="/">Return to Home</Link>
-        </Button>
-      </main>
-    );
+    return <Navigate to="/shop" />;
   }
 
-  // Error state
   if (error) {
-    console.error('Order fetch error:', error);
-    return (
-      <main className="max-w-4xl mx-auto px-8 py-6">
-        <h2 className="text-4xl font-bold text-red-600">Error Loading Order</h2>
-        <p className="mt-4">Failed to load order details. Please try again later.</p>
-        <Button asChild className="mt-4">
-          <Link to="/">Return to Home</Link>
-        </Button>
-      </main>
-    );
+    return <div>Error: {error}</div>;
   }
 
-  // Success state
+  // Get items from location state
+  const items = location.state?.items || [];
+
   return (
     <main className="max-w-4xl mx-auto px-8 py-6">
       <h2 className="text-4xl font-bold text-green-600">
@@ -114,7 +75,7 @@ function CompletePage() {
       <div className="bg-white rounded-lg shadow-md p-6 mt-6">
         <h3 className="text-xl font-semibold mb-4">Order Details</h3>
         <div className="space-y-4">
-          {orderData?.items?.map((item, index) => (
+          {items.map((item, index) => (
             <div key={index} className="flex justify-between border-b py-2">
               <div>
                 <p className="font-medium">{item.name}</p>
@@ -129,15 +90,13 @@ function CompletePage() {
           <div className="flex justify-between">
             <p className="font-medium">Total Price:</p>
             <p className="font-bold">
-              {total ? `$${Number(total).toFixed(2)}` : 
-               orderData?.total ? `$${Number(orderData.total).toFixed(2)}` : 
-               "N/A"}
+              {total ? `$${Number(total).toFixed(2)}` : "N/A"}
             </p>
           </div>
         </div>
 
         <div className="mt-6">
-          <p className="text-sm text-gray-600">Order ID: {orderData?._id}</p>
+          <p className="text-sm text-gray-600">Order ID: {orderId}</p>
           <p className="text-sm text-gray-600">
             Payment Status: {paymentStatus === "PENDING" ? "Pending (Cash on Delivery)" : "Paid"}
           </p>
@@ -149,19 +108,19 @@ function CompletePage() {
             }
           </p>
           
-          {orderData?.shippingAddress && (
+          {location.state?.shippingAddress && (
             <div className="mt-4">
               <h4 className="font-medium">Shipping Address</h4>
               <div className="mt-2 text-sm text-gray-600">
-                <p>{orderData.shippingAddress.line_1}</p>
-                {orderData.shippingAddress.line_2 && (
-                  <p>{orderData.shippingAddress.line_2}</p>
+                <p>{location.state.shippingAddress.line_1}</p>
+                {location.state.shippingAddress.line_2 && (
+                  <p>{location.state.shippingAddress.line_2}</p>
                 )}
                 <p>
-                  {orderData.shippingAddress.city}, {orderData.shippingAddress.state}{" "}
-                  {orderData.shippingAddress.zip_code}
+                  {location.state.shippingAddress.city}, {location.state.shippingAddress.state}{" "}
+                  {location.state.shippingAddress.zip_code}
                 </p>
-                <p>Phone: {orderData.shippingAddress.phone}</p>
+                <p>Phone: {location.state.shippingAddress.phone}</p>
               </div>
             </div>
           )}
